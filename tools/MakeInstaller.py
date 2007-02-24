@@ -19,6 +19,7 @@ sourceFiles = (
     "plugins/*.py",
     "plugins/*.png",
 )
+
     
 class OptionsDialog(wx.Dialog):
     def __init__(self):
