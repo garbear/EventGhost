@@ -569,7 +569,6 @@ if len(sys.argv) == 1:
 else:
     url = sys.argv[1]
     sys.argv[1] = "py2exe"
-sys.argv.append("-q")
 mainDialog = MainDialog(url)
 mainDialog.Show()
 app.MainLoop()
