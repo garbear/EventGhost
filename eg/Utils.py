@@ -1,5 +1,6 @@
 # $LastChangedDate$
-# $Rev$
+# $LastChangedRevision$
+# $LastChangedBy$
 
 import threading
 import sys
