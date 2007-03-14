@@ -35,6 +35,10 @@ class EventHook(object):
         self.__handlers.append(handler)
         
         
+    def Unbind(self, handler):
+        self.__handlers.remove(handler)
+        
+        
     def Fire(self, *args, **kwargs):
         for handler in self.__handlers:
             handler(*args, **kwargs)
@@ -170,5 +174,6 @@ def SetClass(obj, cls):
             setattr(obj, k, newValue)
     obj.__class__ = cls
     
+
 
 
