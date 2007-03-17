@@ -357,7 +357,7 @@ class MouseWheel(eg.ActionClass):
     
     
     def __call__(self, direction=0):
-        print mouse_event(0x0800, 0, 0, direction * 120, 0)
+        mouse_event(0x0800, 0, 0, direction * 120, 0)
         
     
     def GetLabel(self, direction=0):
