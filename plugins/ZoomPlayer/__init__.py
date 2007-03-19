@@ -589,7 +589,7 @@ class ZoomPlayer(eg.PluginClass):
             class Handler(eg.ActionClass):
                 name = className[2:]
                 description = descr
-                __call__ = returnHandler("5100 " + name)
+                __call__ = returnHandler("5100 " + className)
             Handler.__name__ = className
             action = subGroup.AddAction(Handler)
             setattr(self, className[2:], action)
@@ -610,7 +610,7 @@ class ZoomPlayer(eg.PluginClass):
             class Handler(eg.ActionWithStringParameter):
                 name = shortDoc
                 description = descr
-                __call__ = returnExecute("5110 " + name + ",")
+                __call__ = returnExecute("5110 " + className + ",")
                 GetLabel = returnGetLabel(shortDoc + ": ")   
             Handler.__name__ = className
             action = subGroup.AddAction(Handler)
@@ -840,6 +840,7 @@ class ZoomPlayer(eg.PluginClass):
             self.TriggerEvent(header, [state])
 
 
+    @eg.LogIt
     def push(self, data):
         if not self.dispatcher_running:
             self.dispatcher = ZoomPlayer_Session(self, (self.host, self.port))
