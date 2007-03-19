@@ -252,9 +252,10 @@ class TreeCtrl(wx.TreeCtrl):
         
         def OnSelectionChanged(event):
             id = event.GetItem()
-            item = self.GetPyData(id)
-            document.selection = item
-            document.selectionEvent.Fire(item)
+            if id.IsOk():
+                item = self.GetPyData(id)
+                document.selection = item
+                document.selectionEvent.Fire(item)
             event.Skip()
         Bind(wx.EVT_TREE_SEL_CHANGED, OnSelectionChanged)
         

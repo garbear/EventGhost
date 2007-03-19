@@ -366,7 +366,7 @@ class MainFrame(wx.Frame):
         Bind(wx.EVT_KILL_FOCUS, OnTreeKillFocus)
 
         Bind(wx.EVT_RIGHT_DOWN, self.OnRightClick)
-        Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
+        Bind(wx.EVT_TREE_ITEM_MENU, self.OnContextMenu)
         
         Bind = self.Bind
         Bind(wx.EVT_ICONIZE, self.OnIconize)
@@ -560,13 +560,14 @@ class MainFrame(wx.Frame):
         # so we have to do it ourself
         pos = event.GetPosition()
         id, flags = self.treeCtrl.HitTest(pos)
-        self.treeCtrl.SelectItem(id)
+        if id.IsOk():
+            self.treeCtrl.SelectItem(id)
         
 
-    def OnRightUp(self, event):
+    def OnContextMenu(self, event):
         self.treeCtrl.SetFocus()
         self.SetupEditMenu(self.popupMenuItems)
-        self.treeCtrl.PopupMenu(self.popupMenu)
+        self.treeCtrl.PopupMenu(self.popupMenu, event.GetPoint())
 
 
     def CheckFileNeedsSave(self):
