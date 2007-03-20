@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
 class PluginInfo(eg.PluginInfo):
@@ -31,14 +53,7 @@ class DirectoryWatcher(eg.PluginClass):
     text = Text
     canMultiLoad = True
     
-    def __init__(self):
-        eg.whoami()
-        self.isEnabled = False
-
-
     def __start__(self, path, includeSubdirs):
-        eg.whoami()
-        self.isEnabled = True
         self.stopEvent = win32event.CreateEvent(None, 1, 0, None)
         self.path = path
         self.includeSubdirs = includeSubdirs
@@ -49,16 +64,9 @@ class DirectoryWatcher(eg.PluginClass):
         
         
     def __stop__(self):
-        eg.whoami()
-        self.isEnabled = False
         if self.thread is not None:
             win32event.PulseEvent(self.stopEvent)
             self.thread.join(5.0)
-        
-        
-    def __close__(self):
-        eg.whoami()
-        pass
         
         
     def TestFile(self, path):
@@ -99,7 +107,10 @@ class DirectoryWatcher(eg.PluginClass):
                     win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE,
                     None,
                     win32con.OPEN_EXISTING,
-                    win32con.FILE_FLAG_BACKUP_SEMANTICS|win32con.FILE_FLAG_OVERLAPPED,
+                    (
+                        win32con.FILE_FLAG_BACKUP_SEMANTICS
+                        |win32con.FILE_FLAG_OVERLAPPED
+                    ),
                     None
                 )
             except pywintypes.error, e:
@@ -134,19 +145,19 @@ class DirectoryWatcher(eg.PluginClass):
                     size = GetOverlappedResult(hDir, overlapped, 1)
                     results = FILE_NOTIFY_INFORMATION(buffer, size)
                     for action, file in results:
-                        full_filename = os.path.join(self.path, file)
+                        fullFilename = os.path.join(self.path, file)
                         if action ==  1: 
-                            self.TriggerEvent("Created", (full_filename,))
+                            self.TriggerEvent("Created", (fullFilename,))
                         elif action ==  2: 
-                            self.TriggerEvent("Deleted", (full_filename,))
+                            self.TriggerEvent("Deleted", (fullFilename,))
                         elif action ==  3: 
-                            self.TriggerEvent("Updated", (full_filename,))
+                            self.TriggerEvent("Updated", (fullFilename,))
                         elif action == 4:
-                            renamePath = full_filename
+                            renamePath = fullFilename
                         elif action == 5:
                             self.TriggerEvent(
                                 "Renamed", 
-                                (renamePath, full_filename)
+                                (renamePath, fullFilename)
                             )
                             renamePath = None
                 elif rc == WAIT_OBJECT_0+1:
