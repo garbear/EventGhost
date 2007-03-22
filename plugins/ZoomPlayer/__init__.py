@@ -840,7 +840,6 @@ class ZoomPlayer(eg.PluginClass):
             self.TriggerEvent(header, [state])
 
 
-    @eg.LogIt
     def push(self, data):
         if not self.dispatcher_running:
             self.dispatcher = ZoomPlayer_Session(self, (self.host, self.port))
