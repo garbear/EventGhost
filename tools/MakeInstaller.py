@@ -25,7 +25,7 @@ SUBWCREV_PATH = r"\Programme\TortoiseSVN\bin\SubWCRev.exe"
 tmpDir = tempfile.mkdtemp()
 toolsDir = abspath(dirname(sys.argv[0]))
 trunkDir = abspath(join(toolsDir, ".."))
-outDir = abspath(join(trunkDir, "..", ".."))
+outDir = abspath(join(trunkDir, ".."))
 
 SourcePattern = [
     "*.py", 
@@ -226,7 +226,7 @@ py2exeOptions = dict(
                 "gdiplus.dll", 
                 "msvcr71.dll"
             ],
-            dist_dir = join(tmpDir, "dist"),
+            dist_dir = trunkDir,
         )
     ),
     # The lib directory contains everything except the executables and the python dll.
@@ -277,14 +277,11 @@ Type: filesandordirs; Name: "{app}\eg"
 %(INSTALL_DELETE)s
 
 [Files]
-Source: "%(DIST)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(DIST)s\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(DIST)s\lib\*.*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs
+Source: "%(TRUNK)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "%(TRUNK)s\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "%(TRUNK)s\lib\*.*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs
 %(INSTALL_FILES)s
 Source: "%(TRUNK)s\Example.xml"; DestDir: "{userappdata}\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "%(PYTHON_DIR)s\MFC71.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(PYTHON_DIR)s\msvcr71.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(PYTHON_DIR)s\msvcp71.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 Filename: "{app}\EventGhost.exe"; Parameters: "-install"
@@ -335,7 +332,7 @@ Filename: "{app}\EventGhost.exe"; Flags: postinstall nowait skipifsilent
 Type: filesandordirs; Name: "{app}\eg"
 
 [Files]
-Source: "%(DIST)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
+;Source: "%(DIST)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
 %(INSTALL_FILES)s
 Source: "%(TRUNK)s\Example.xml"; DestDir: "{userappdata}\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
 
@@ -414,10 +411,7 @@ def MakeSourceArchive(outFile):
     archive.close()
 
 
-def MakeInstaller(isUpdate):
-    from distutils.core import setup
-    import py2exe
-
+def MakeInstaller(isUpdate, makeLib, makeSourceArchive):
     templateOptions = UpdateVersionFile(GetSvnVersion())
     VersionStr = templateOptions['version'] + '_build_' + str(templateOptions['buildNum'])
     templateOptions['VersionStr'] = VersionStr
@@ -438,11 +432,20 @@ def MakeInstaller(isUpdate):
     installDelete = "\n".join(installDeleteDirs)
     templateOptions["INSTALL_DELETE"] = installDelete
     
-    print "Creating source ZIP file"
-    MakeSourceArchive(join(outDir, "EventGhost_%s_Source.zip" % VersionStr))
+    if makeSourceArchive:
+        print "Creating source ZIP file"
+        MakeSourceArchive(join(outDir, "EventGhost_%s_Source.zip" % VersionStr))
         
-    InstallPy2exePatch()
-    setup(**py2exeOptions)
+    if makeLib:
+        RemoveDirectory(join(trunkDir, "lib"))
+        from distutils.core import setup
+        import py2exe
+        InstallPy2exePatch()
+        setup(**py2exeOptions)
+        pythonDir = dirname(sys.executable)
+        copy(join(pythonDir, "MFC71.dll"), trunkDir)
+        copy(join(pythonDir, "msvcr71.dll"), trunkDir)
+        copy(join(pythonDir, "msvcp71.dll"), trunkDir)
     
     installFiles = []
     if isUpdate:
@@ -483,24 +486,10 @@ def UploadFile(filename, url):
             self.size = os.path.getsize(filepath)
             self.fd = open(filepath, "rb")
             self.pos = 0
-            self.dialog = wx.ProgressDialog(
-                "Upload",
-                "Uploading: %s" % filename,
-                maximum=self.size+1,
-                style = wx.PD_CAN_ABORT
-                    | wx.PD_APP_MODAL
-                    | wx.PD_ELAPSED_TIME
-                    | wx.PD_ESTIMATED_TIME
-                    | wx.PD_REMAINING_TIME
-                    | wx.PD_SMOOTH
-            )
             
         def read(self, size):
-            keepGoing, skip = self.dialog.Update(min(self.size, self.pos))
+            print self.pos, int(round(100.0 * self.size / self.pos))
             self.pos += size
-            if not keepGoing:
-                aborted = True
-                return None
             return self.fd.read(size)
         
         def close(self):
@@ -530,7 +519,6 @@ def UploadFile(filename, url):
     ftp.quit()
     fd.close()
     print "Upload done!"
-    fd.dialog.Destroy()
     
 
 
@@ -541,16 +529,16 @@ class MainDialog(wx.Dialog):
         wx.Dialog.__init__(self, None, title="Make EventGhost Installer")
         
         # create controls
+        self.createSourceCB = wx.CheckBox(self, -1, "Create Source Archive")
+        self.createImportsCB = wx.CheckBox(self, -1, "Create Imports")
+        self.createLib = wx.CheckBox(self, -1, "Create Lib")
+        self.uploadCB = wx.CheckBox(self, -1, "Upload")
+        self.uploadCB.SetValue(bool(url))
         self.makeUpdateRadioBox = wx.RadioBox(
             self, 
             choices = ("Make Update", "Make Full Installer"),
             style = wx.RA_SPECIFY_ROWS
         )
-        self.uploadCB = wx.CheckBox(self, -1, "Upload")
-        if url:
-            self.uploadCB.SetValue(True)
-        else:
-            self.uploadCB.Enable(False)
         self.url = url
         okButton = wx.Button(self, wx.ID_OK)
         okButton.Bind(wx.EVT_BUTTON, self.OnOk)
@@ -564,8 +552,11 @@ class MainDialog(wx.Dialog):
         btnSizer.Realize()
         
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.makeUpdateRadioBox, 0, wx.ALL, 10)
+        sizer.Add(self.createSourceCB, 0, wx.ALL, 10)
+        sizer.Add(self.createImportsCB, 0, wx.ALL, 10)
+        sizer.Add(self.createLib, 0, wx.ALL, 10)
         sizer.Add(self.uploadCB, 0, wx.ALL, 10)
+        sizer.Add(self.makeUpdateRadioBox, 0, wx.ALL, 10)
         sizer.Add(btnSizer)
 
         self.SetSizerAndFit(sizer)
@@ -573,8 +564,12 @@ class MainDialog(wx.Dialog):
         
     def OnOk(self, event):
         self.Show(False)
+        if self.createImportsCB.GetValue():
+            import MakeImports
         isUpdate = self.makeUpdateRadioBox.GetSelection() == 0
-        filename = MakeInstaller(isUpdate)
+        makeLib = self.createLib.GetValue()
+        makeSourceArchive = self.createSourceCB.GetValue()
+        filename = MakeInstaller(isUpdate, makeLib, makeSourceArchive)
         if self.uploadCB.GetValue():
             UploadFile(filename, self.url)
         app.ExitMainLoop()

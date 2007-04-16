@@ -602,6 +602,6 @@ class TreeCtrl(wx.TreeCtrl):
             for pos in path:
                 item = item.childs[pos]
         except:
-            item = root
+            item = self.root
         return item
 
