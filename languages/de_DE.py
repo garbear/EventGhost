@@ -598,6 +598,14 @@ class Plugin:
             slow = u'Langsam'
             textBoxLabel = u'Text'
             voiceProperties = u'Spracheigenschaften'
+    class TrayMenu:
+        description = u'Erlaubt es das Tray-Men\xfc von EventGhost um  eigene Men\xfc-Eintr\xe4ge zu erweitern.'
+        addButton = u'Hinzuf\xfcgen'
+        deleteButton = u'Entfernen'
+        editEvent = u'Ereignis:'
+        editLabel = u'Beschriftung:'
+        eventHeader = u'Ereignis'
+        labelHeader = u'Beschriftung'
     class USB_UIRT:
         blinkRx = u'Blinke bei Empfang'
         blinkTx = u'Blinke beim Senden'
