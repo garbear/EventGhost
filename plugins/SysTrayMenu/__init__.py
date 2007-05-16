@@ -27,10 +27,11 @@ class PluginInfo(eg.PluginInfo):
     description = (
         "Allows you to add custom menu entries to the tray menu of EventGhost."
     )
+    author = "Bitmonster"
+    version = "1.0.0"
     
 import wx
 import wx.gizmos
-from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 
 class Text:
@@ -40,11 +41,29 @@ class Text:
     editEvent = "Event:"
     addButton = "Add"
     deleteButton = "Delete"
+    unnamedLabel = "New Menu Item %s"
+    unnamedEvent = "Event%s"
     
     
     
-class TreeListCtrl(wx.gizmos.TreeListCtrl, ListCtrlAutoWidthMixin):
+class TreeListCtrl(wx.gizmos.TreeListCtrl):
     
+    def __init__(self, *args, **kwargs):
+        wx.gizmos.TreeListCtrl.__init__(self, *args, **kwargs)
+        self.Bind(wx.EVT_SIZE, self.OnSize)
+        
+    
+    def OnSize(self, event):
+        event.Skip()
+        #self.Unbind(wx.EVT_SIZE)
+        wx.CallAfter(self.OnSize2)
+        
+        
+    def OnSize2(self):
+        w, h = self.GetSizeTuple()
+        self.SetColumnWidth(1, w - 204 - wx.SystemSettings.GetMetric(wx.SYS_VSCROLL_X))
+        
+        
     def GetPrevious(self, item):
         previous = self.GetPrevSibling(item)
         if previous.IsOk():
@@ -119,20 +138,13 @@ class SysTrayMenu(eg.PluginClass):
     def Configure(self, menuData=[]):
         dialog = eg.ConfigurationDialog(self)
         text = self.text
+        
         tree = TreeListCtrl(
             dialog, 
             -1,
-            style = 
-                  wx.TR_FULL_ROW_HIGHLIGHT
-                | wx.TR_DEFAULT_STYLE
-                | wx.TR_NO_BUTTONS 
-                | wx.TR_COLUMN_LINES
-                #| wx.TR_NO_LINES 
-                #| wx.TR_ROW_LINES
-                #| wx.TR_HIDE_ROOT
-                
+            style = wx.TR_FULL_ROW_HIGHLIGHT 
+                |wx.TR_DEFAULT_STYLE
         )
-        ListCtrlAutoWidthMixin.__init__(tree)
         tree.SetMinSize((10, 10))
         tree.AddColumn(text.labelHeader)
         tree.AddColumn(text.eventHeader)
@@ -156,30 +168,26 @@ class SysTrayMenu(eg.PluginClass):
             eventBox.SetLabel(tree.GetItemText(item, 1))
         tree.Bind(wx.EVT_TREE_SEL_CHANGED, OnSelectionChanged)
         
-        upButton = wx.BitmapButton(
-            dialog, 
-            -1, 
-            wx.ArtProvider.GetBitmap(wx.ART_GO_UP, wx.ART_OTHER, (16, 16))
-        )
+        # Up button
+        bmp = wx.ArtProvider.GetBitmap(wx.ART_GO_UP, wx.ART_OTHER, (16, 16))
+        upButton = wx.BitmapButton(dialog, -1, bmp)
         upButton.Enable(False)
         def OnUp(event):
             item = tree.GetSelection()
-            previous = tree.GetPrevious(item)
-            if previous is not None:
+            previous = tree.GetPrevSibling(item)
+            if previous.IsOk():
                 id = tree.GetPrevSibling(previous)
                 if not id.IsOk():
                     id = None
                 newId = tree.CopyItem(item, tree.GetItemParent(previous), id)
-                tree.Delete(item)
                 tree.SelectItem(newId)
                 tree.EnsureVisible(newId)
+                tree.Delete(item)
         upButton.Bind(wx.EVT_BUTTON, OnUp)
         
-        downButton = wx.BitmapButton(
-            dialog, 
-            -1, 
-            wx.ArtProvider.GetBitmap(wx.ART_GO_DOWN, wx.ART_OTHER, (16, 16))
-        )
+        # Down button
+        bmp = wx.ArtProvider.GetBitmap(wx.ART_GO_DOWN, wx.ART_OTHER, (16, 16))
+        downButton = wx.BitmapButton(dialog, -1, bmp)
         downButton.Enable(False)
         def OnDown(event):
             item = tree.GetSelection()
@@ -191,35 +199,47 @@ class SysTrayMenu(eg.PluginClass):
                 tree.EnsureVisible(newId)
         downButton.Bind(wx.EVT_BUTTON, OnDown)
 
+        # Add button
         addButton = wx.Button(dialog, -1, text.addButton)
         def OnAdd(event):
             numStr = str(tree.GetCount() + 1)
-            item = tree.AppendItem(root, "New Menu Item %s" % numStr)
-            tree.SetItemText(item, "Event%s" % numStr, 1)
+            item = tree.AppendItem(root, text.unnamedLabel % numStr)
+            tree.SetItemText(item, text.unnamedEvent % numStr, 1)
             tree.Expand(tree.GetItemParent(item))
             tree.SelectItem(item)
+            tree.EnsureVisible(item)
         addButton.Bind(wx.EVT_BUTTON, OnAdd)
         
+        # Delete button
         deleteButton = wx.Button(dialog, -1, text.deleteButton)
         deleteButton.Enable(False)
         def OnDelete(event):
             item = tree.GetSelection()
+            next = tree.GetNextSibling(item)
+            if not next.IsOk():
+                next = tree.GetPrevSibling(item)
+                if not next.IsOk():
+                    next = tree.GetItemParent(item)
+            tree.SelectItem(next)
             tree.Delete(item)
-            tree.SelectItem(root)
+            tree.EnsureVisible(next)
         deleteButton.Bind(wx.EVT_BUTTON, OnDelete)
         
+        # Label edit box
         labelBox = wx.TextCtrl(dialog, -1)
         def OnLabelTextChange(event):
             item = tree.GetSelection()
             tree.SetItemText(item, labelBox.GetValue(), 0)
         labelBox.Bind(wx.EVT_TEXT, OnLabelTextChange)
         
+        # Event edit box
         eventBox = wx.TextCtrl(dialog, -1)
         def OnEventTextChange(event):
             item = tree.GetSelection()
             tree.SetItemText(item, eventBox.GetValue(), 1)
         eventBox.Bind(wx.EVT_TEXT, OnEventTextChange)
         
+        # Construction of the dialog with sizers
         buttonSizer1 = wx.BoxSizer(wx.VERTICAL)
         buttonSizer1.Add((5, 5), 1, wx.EXPAND)
         buttonSizer1.Add(upButton)
@@ -236,17 +256,11 @@ class SysTrayMenu(eg.PluginClass):
         
         editSizer = wx.FlexGridSizer(2, 2, 5, 5)
         editSizer.AddGrowableCol(1)
-        editSizer.Add(
-            wx.StaticText(dialog, -1, text.editLabel), 
-            0, 
-            wx.ALIGN_CENTER_VERTICAL
-        )
+        staticText1 = wx.StaticText(dialog, -1, text.editLabel)
+        editSizer.Add(staticText1, 0, wx.ALIGN_CENTER_VERTICAL)
         editSizer.Add(labelBox, 0, wx.EXPAND)
-        editSizer.Add(
-            wx.StaticText(dialog, -1, text.editEvent), 
-            0, 
-            wx.ALIGN_CENTER_VERTICAL
-        )
+        staticText2 = wx.StaticText(dialog, -1, text.editEvent)
+        editSizer.Add(staticText2, 0, wx.ALIGN_CENTER_VERTICAL)
         editSizer.Add(eventBox, 0, wx.EXPAND)
         
         mainSizer = wx.FlexGridSizer(2, 2)
@@ -255,10 +269,15 @@ class SysTrayMenu(eg.PluginClass):
         mainSizer.Add(tree, 1, wx.EXPAND)
         mainSizer.Add(buttonSizer, 0, wx.LEFT|wx.EXPAND, 5)
         mainSizer.Add(editSizer, 0, wx.EXPAND|wx.TOP, 5)
+        
         dialog.sizer.Add(mainSizer, 1, wx.EXPAND)
         
-        tree.resizeLastColumn(-1)
-
+        next = tree.GetFirstChild(root)[0]
+        if next.IsOk():
+            tree.SelectItem(next)
+        else:
+            tree.SelectItem(root)
+            
         if dialog.AffirmedShowModal():
             l = []
             def Traverse(item):
