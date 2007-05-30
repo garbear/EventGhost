@@ -5,6 +5,7 @@ __kind__ = "remote"
 __description__ = 'Hardware plugin for the "Advanced IR-Transceiver".'
 
 
+
 import eg
 
 class PluginInfo(eg.PluginInfo):
