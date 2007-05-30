@@ -4,6 +4,7 @@ __version__ = "1.0." + "$LastChangedRevision: 81 $".split()[1]
 __kind__ = "remote"
 __description__ = 'Hardware plugin for the "Advanced IR-Transceiver".'
 
+
 import eg
 
 class PluginInfo(eg.PluginInfo):
