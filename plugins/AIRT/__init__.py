@@ -1,6 +1,6 @@
 __pluginname__ = "Advanced IR-Transceiver"
 __author__ = "Bitmonster"
-__version__ = "1.0." + "$LastChangedRevision: 81 $".split()[1]
+__version__ = "1.0." + "$LastChangedRevision: 100 $".split()[1]
 __kind__ = "remote"
 __description__ = 'Hardware plugin for the "Advanced IR-Transceiver".'
 
