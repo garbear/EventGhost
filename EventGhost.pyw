@@ -27,7 +27,7 @@ import imp
 from os.path import dirname, abspath, join
 
 if hasattr(sys, "frozen"):
-    programPath = dirname(sys.executable))
+    programPath = dirname(sys.executable)
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
     
