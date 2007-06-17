@@ -31,8 +31,6 @@ if hasattr(sys, "frozen"):
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
     
-sys.stderr.write(repr(sys.getfilesystemencoding()) + "\n")
-sys.stderr.write(repr(sys.executable) + "\n")
 imp.load_source("Main", join(programPath, "eg", "Main.py"))
 
 print "should never come here"
