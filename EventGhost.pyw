@@ -25,12 +25,14 @@
 import sys
 import imp
 from os.path import dirname, abspath, join
+import locale
 
 if hasattr(sys, "frozen"):
-    programPath = dirname(sys.executable)
+    programPath = dirname(sys.executable.decode(locale.getdefaultlocale()[1]))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
-    
+   
+sys.stdout.write(repr(programPath) + "\n") 
 imp.load_source("Main", join(programPath, "eg", "Main.py"))
 
 print "should never come here"
