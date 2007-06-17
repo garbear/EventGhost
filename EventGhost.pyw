@@ -27,20 +27,18 @@ import imp
 from os.path import dirname, abspath, join
 import locale
 
-sys.stderr.write(repr(sys.executable) + "\n") 
 if hasattr(sys, "frozen"):
-    programPath = dirname(unicode(sys.executable, locale.getdefaultlocale()[1]))
+    programPath = dirname(unicode(sys.executable, sys.getfilesystemencoding()))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
    
-sys.stderr.write(repr(programPath) + "\n") 
-imp.load_source("Main", join(programPath, "eg", "Main.py"))
+imp.load_source("Main", join(programPath, "eg", "Main.py").encode('mbcs'))
 
 print "should never come here"
 # The "imports" module file is created by the tools/MakeImports.py script
 # and is located in the "tools" directory also.
 # It includes all modules the program might need. This way we force py2exe
 # to include them in the distribution.
-#import greenlet
-#import imports
+import greenlet
+import imports
 
