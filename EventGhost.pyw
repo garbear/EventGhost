@@ -27,14 +27,13 @@ import imp
 from os.path import dirname, abspath, join
 
 if hasattr(sys, "frozen"):
-    programPath = dirname(sys.executable.decode(sys.getfilesystemencoding()))
+    programPath = dirname(sys.executable))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
     
+sys.stderr.write(repr(sys.getfilesystemencoding()) + "\n")
 sys.stderr.write(repr(sys.executable) + "\n")
-sys.stderr.write(repr(programPath) + "\n")
-sys.stderr.write(repr(join(programPath, u"eg", u"Main.py")) + "\n")
-imp.load_source("Main", join(programPath, u"eg", u"Main.py"))
+imp.load_source("Main", join(programPath, "eg", "Main.py"))
 
 print "should never come here"
 # The "imports" module file is created by the tools/MakeImports.py script
