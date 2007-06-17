@@ -27,6 +27,7 @@ import imp
 from os.path import dirname, abspath, join
 import locale
 
+sys.stdout.write(repr(sys.executable) + "\n") 
 if hasattr(sys, "frozen"):
     programPath = dirname(sys.executable.decode(locale.getdefaultlocale()[1]))
 else:
