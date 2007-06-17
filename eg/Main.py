@@ -27,16 +27,15 @@ import locale
 encoding = locale.getdefaultlocale()[1]
 locale.setlocale(locale.LC_ALL, '')
 
-
+sys.stdout.write("main" + "\n")
 # get program directory
 if hasattr(sys, "frozen"):
-    mainDir = os.path.dirname(sys.executable)
+    mainDir = os.path.dirname(unicode(sys.executable, encoding))
 else:
     mainDir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 # change working directory to program directory
 os.chdir(mainDir)
-mainDir = os.getcwdu()
 
 # append our pathes to sys.path
 sys.path.append(mainDir + "\\eg")
