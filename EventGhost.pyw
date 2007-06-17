@@ -29,7 +29,7 @@ import locale
 
 sys.stderr.write(repr(sys.executable) + "\n") 
 if hasattr(sys, "frozen"):
-    programPath = dirname(sys.executable.decode(locale.getdefaultlocale()[1]))
+    programPath = dirname(unicode(sys.executable, locale.getdefaultlocale()[1]))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
    
