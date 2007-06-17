@@ -28,7 +28,7 @@ from os.path import dirname, abspath, join
 import locale
 
 if hasattr(sys, "frozen"):
-    programPath = dirname(unicode(sys.executable, locale.getdefaultlocale()[1]))
+    programPath = dirname(sys.executable.decode(locale.getdefaultlocale()[1]))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
    
