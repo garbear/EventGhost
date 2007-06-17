@@ -27,7 +27,7 @@ import locale
 encoding = locale.getdefaultlocale()[1]
 locale.setlocale(locale.LC_ALL, '')
 
-sys.stdout.write("main" + "\n")
+sys.stderr.write("main" + "\n")
 # get program directory
 if hasattr(sys, "frozen"):
     mainDir = os.path.dirname(unicode(sys.executable, encoding))

@@ -27,13 +27,13 @@ import imp
 from os.path import dirname, abspath, join
 import locale
 
-sys.stdout.write(repr(sys.executable) + "\n") 
+sys.stderr.write(repr(sys.executable) + "\n") 
 if hasattr(sys, "frozen"):
     programPath = dirname(sys.executable.decode(locale.getdefaultlocale()[1]))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
    
-sys.stdout.write(repr(programPath) + "\n") 
+sys.stderr.write(repr(programPath) + "\n") 
 sys.exit(0)
 imp.load_source("Main", join(programPath, "eg", "Main.py"))
 
