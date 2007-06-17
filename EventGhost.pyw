@@ -34,7 +34,6 @@ else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
    
 sys.stderr.write(repr(programPath) + "\n") 
-sys.exit(0)
 imp.load_source("Main", join(programPath, "eg", "Main.py"))
 
 print "should never come here"
