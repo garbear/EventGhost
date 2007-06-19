@@ -25,7 +25,6 @@
 import sys
 import imp
 from os.path import dirname, abspath, join
-import locale
 
 if hasattr(sys, "frozen"):
     programPath = dirname(unicode(sys.executable, sys.getfilesystemencoding()))
