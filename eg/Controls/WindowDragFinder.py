@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 from eg.WinAPI.Utils import HighlightWindow, BestWindowFromPoint
 import win32api
@@ -9,16 +31,15 @@ from win32process import GetWindowThreadProcessId
 ourProcessID = win32api.GetCurrentProcessId()
 
 
-class WindowDragFinder(wx.Control):
+class WindowDragFinder(wx.PyWindow):
     
     def __init__(self, parent, startFunc, endFunc):
         self.startFunc = startFunc
         self.endFunc = endFunc
         
         self.text = text = eg.plugins.Window.FindWindow.text
-        wx.Control.__init__(self, parent, -1, style=wx.SIMPLE_BORDER)
-        self.SetBackgroundColour((255,255,255))
-        #self.Bind(wx.EVT_LEFT_DOWN, self.OnDragboxClick)
+        wx.PyWindow.__init__(self, parent, -1, style=wx.SIMPLE_BORDER)
+        self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
         self.lastTarget = None
         
         # load images
@@ -32,7 +53,6 @@ class WindowDragFinder(wx.Control):
         ).ConvertToBitmap()
 
         # make a cursor from an image
-        path = os.path.dirname(__file__)
         image = wx.Image('images/findertc.png', wx.BITMAP_TYPE_PNG)
         image.SetMaskColour(255, 0, 0)
 
@@ -74,7 +94,6 @@ class WindowDragFinder(wx.Control):
         sizer.Fit(self)
         self.Layout()
         self.SetMinSize(self.GetSize())
-        self.clickCounter = 0
         
         
     def OnSize(self, event):
@@ -82,11 +101,15 @@ class WindowDragFinder(wx.Control):
             self.Layout()        
         
         
+    @eg.LogIt
+    def AcceptsFocusFromKeyboard(self):
+        return False
+        
+        
+    @eg.LogIt
     def OnDragboxClick(self, event):
         """ Handle left-click on findtool
         """
-        eg.whoami()
-            
         if self.HasCapture():
             event.Skip()
             return
@@ -132,9 +155,8 @@ class WindowDragFinder(wx.Control):
         event.Skip()
 
 
+    eg.LogIt
     def OnDragEnd(self, event):
-        eg.whoami()
-
         # revert box to normal image
         self.dragBoxImage.SetBitmap(self.dragBoxBitmap)
         self.dragBoxText.SetLabel(self.text.drag1)
@@ -151,7 +173,6 @@ class WindowDragFinder(wx.Control):
             HighlightWindow(self.lastTarget)
             
         self.endFunc()
-        #self.Command(wx.CommandEvent(wx.EVT_BUTTON.evtType[0]))
         
         
     def GetValue(self):

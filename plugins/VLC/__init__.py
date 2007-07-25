@@ -27,13 +27,14 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "VLC media player"
-    author = "MonsterMagnet"
-    version = "0.3"
-    kind = "program"
+eg.RegisterPlugin(
+    name = "VLC media player",
+    author = "MonsterMagnet",
+    version = "0.3." + "$LastChangedRevision$".split()[1],
+    kind = "program",
     description = (
-        'Adds support functions to control VideoLan Media Player.'
+        'Adds actions to control the '
+        '<a href="http://www.videolan.org/">VLC media player</a>.'
         '\n\n</p>'
         '<p>Enable the RC Interface or start VLC with:</p>'
         '<p><b>vlc.exe --extraintf=rc --rc-host=localhost:1234 '
@@ -42,8 +43,8 @@ class PluginInfo(eg.PluginInfo):
         'commands that are enabled in VLC!</p>'
         '<p><a href=http://www.eventghost.org/forum/viewtopic.php?t=43>'
         'Help and Bugreport</a></p>'
-        '<p><a href=http://www.videolan.org>VideoLan Media Player</a></p>'
-    )
+        '<p><a href="http://www.videolan.org/">VideoLAN project</a></p>'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACZElEQVR42pXSa0iTURgH"
         "8P/Z+8528TYJp7kPXqZUMOe8RFoRWFlUJKMIjBKDTEO6SBcSKgJBKmrYzchZoV2+CCFd"
@@ -59,7 +60,8 @@ class PluginInfo(eg.PluginInfo):
         "N0an7qEyDwiCFImgO8UC9D8w9FnFclqjOZd7Pl+SXdsTAjjDmiss7zwd6sVHY3q+r8D8"
         "Hdn5XEojkgbFIE6sJwWm6hDwYr/okIz367GENRMtqihs9Df+Brue2BE7hqGjAAAAAElF"
         "TkSuQmCC"
-    )
+    ),
+)
 
 import asynchat, socket
 import wx
@@ -229,7 +231,7 @@ class VLC(eg.PluginClass):
         sizer.Add(cb1, 0, wx.ALL, 5)       
        
         if dialog.AffirmedShowModal():
-            return hostEdit.GetValue(), portEdit.GetValue(), cb1.GetValue()
+            return (hostEdit.GetValue(), portEdit.GetValue(), cb1.GetValue())
    
 
 
@@ -262,5 +264,5 @@ class VLC(eg.PluginClass):
             dialog.sizer.Add(mySizer)
            
             if dialog.AffirmedShowModal():
-                return textEdit.GetValue(),
+                return (textEdit.GetValue(), )
             

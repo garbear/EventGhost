@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 from ActionMetaClass import ActionMetaClass
 
@@ -42,16 +64,16 @@ class ActionClass(object):
         Return the label that should be displayed in the configuration tree
         with the current arguments.
         
-        This default method simply shows the plugin name, the action name and
+        This default method simply shows the action name and
         the first parameter if there is any. If you want to have a different 
         behaviour, override it.
         
         This method gets called with the same parameters as the __call__
         method.
         """
-        s = "%s: %s" % (self.plugin.info.label, self.name)
+        s = self.name
         if args:
-            s += ': ' + str(args[0])
+            s += ': ' + unicode(args[0])
         return s
         
         
@@ -79,8 +101,10 @@ class ActionClass(object):
         """
         dialog = eg.ConfigurationDialog(self)
         label = wx.StaticText(dialog, -1, eg.text.General.noOptionsAction)
+        dialog.buttonRow.applyButton.Enable(False)
         dialog.sizer.Add(label)
-        dialog.AffirmedShowModal()
+        if dialog.AffirmedShowModal():
+            return ()
     
     
 # An ActionClass will only define a "Compile" method, if it uses a special 

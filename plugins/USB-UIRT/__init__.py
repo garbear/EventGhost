@@ -1,16 +1,39 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "USB-UIRT"
-    author = "Jon Rhees"
-    version = "1.0.0"
-    kind = "remote"
+eg.RegisterPlugin(
+    name = "USB-UIRT",
+    author = "Jon Rhees",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "remote",
     description = (
-        'Hardware plugin for the USB-UIRT transceiver.'
+        'Hardware plugin for the <a href="http://www.usbuirt.com/">'
+        'USB-UIRT</a> transceiver.'
         '\n\n<p>'
-        '<a href=http://www.usbuirt.com/>USB-UIRT Home<p>'
+        '<a href="http://www.usbuirt.com/"><p>'
         '<center><img src="picture.jpg" alt="USB-UIRT" /></a></center>'
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACbklEQVR42mXTa4hMYRzH"
         "8f9zzoxmsblMJrzYRHgj140XkiG1Vomd1OwoRVHKreSyRWSRvJHSZktKq0E7LvvCFG/k"
@@ -26,11 +49,11 @@ class PluginInfo(eg.PluginInfo):
         "FSUJfSutF1UEUW22H800mlwzbWfRYKVIhsh6I3YFpVGRyFUSRpfkPC4wo8oNAlMM5oh5"
         "fn93sTDGKjKTIZZ1lSKjijh534jlK/JuosaxamVVSv7/NXGtJwiI5rt/QdoW/AOsdcg6"
         "Kwb6cgAAAABJRU5ErkJggg=="
-    )
+    ),
+)
 
 
 import wx
-import locale
 import USB_UIRT as UUIRT
 
 
@@ -45,6 +68,7 @@ class Text:
     notFound = "<not found>"
     irReception = "IR Reception"
     legacyCodes = "Generate 'legacy' UIRT2-compatible events"
+    stopCodes = "Pass short repeat codes as enduring events"
     
     class TransmitIR:
         name = "Transmit IR"
@@ -88,14 +112,20 @@ class USB_UIRT(eg.RawReceiverPlugin):
         self.AddAction(TransmitIR)
 
 
-    def __start__(self, ledRX=True, ledTX=True, legacyRX=False):
+    def __start__(
+        self, 
+        ledRX=True, 
+        ledTX=True, 
+        legacyRX=False, 
+        repeatStopCodes=False
+    ):
         try:
             self.device = UUIRT.USB_UIRT()
         except UUIRT.UUIRTError, msg:
             self.device = None
             raise eg.Exception(msg)
         self.device.SetReceiveCallback(self.ReceiveCallback)
-        self.device.SetConfig(ledRX, ledTX, legacyRX)
+        self.device.SetConfig(ledRX, ledTX, legacyRX, repeatStopCodes)
         self.enabled = True
         
         
@@ -111,7 +141,13 @@ class USB_UIRT(eg.RawReceiverPlugin):
             self.TriggerEvent(eventString)
         
         
-    def Configure(self, ledRx=None, ledTx=None, legacyRx=None):
+    def Configure(
+        self, 
+        ledRx=None, 
+        ledTx=None, 
+        legacyRx=None, 
+        repeatStopCodes=False
+    ):
         text = self.text
         if self.device:
             protocolVersion = self.device.protocolVersion
@@ -168,7 +204,10 @@ class USB_UIRT(eg.RawReceiverPlugin):
         )
         legacyRxCheckBox = wx.CheckBox(dialog, -1, text.legacyCodes)
         legacyRxCheckBox.SetValue(legacyRX)
+        stopCodesRxCheckBox = wx.CheckBox(dialog, -1, text.stopCodes)
+        stopCodesRxCheckBox.SetValue(repeatStopCodes)
         receiveGroupSizer.Add(legacyRxCheckBox, 0, wx.ALL, 10)
+        receiveGroupSizer.Add(stopCodesRxCheckBox, 0, wx.ALL, 10)
         dialog.sizer.Add(receiveGroupSizer, 0, wx.EXPAND)
 
         if dialog.AffirmedShowModal():
@@ -176,6 +215,7 @@ class USB_UIRT(eg.RawReceiverPlugin):
                 ledRxCheckBox.GetValue(),
                 ledTxCheckBox.GetValue(),
                 legacyRxCheckBox.GetValue(),
+                stopCodesRxCheckBox.GetValue(),
             )
 
 
@@ -195,7 +235,8 @@ class TransmitIR(eg.ActionClass):
     def Configure(self, code='', repeatCount=None, inactivityWaitTime=None):
         text = self.text
         dialog = eg.ConfigurationDialog(self)
-        repeatCount = repeatCount or self.repeatCount
+        if repeatCount is None:
+            repeatCount = self.repeatCount
         inactivityWaitTime = inactivityWaitTime or self.inactivityWaitTime
         if len(code) > 0:
             zone = 0

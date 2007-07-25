@@ -1,16 +1,39 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Tira"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "remote"
+eg.RegisterPlugin(
+    name = "Home Electronics Tira",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "remote",
     description = (
-        'Hardware plugin for the "Tira" transceivers from Home Electronics.'
+        'Hardware plugin for the <a href="http://www.home-electro.com/">'
+        'Home Electronics Tira</a> transceiver.'
         '\n\n<p>'
-        '<a href=http://www.home-electro.com/>Home Electronics<p>'
+        '<a href=http://www.home-electro.com/><p>'
         '<center><img src="tira.png" alt="Tira2" /></a></center>'
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADYUlEQVR42m2Te0yTVxjG"
         "n9Pv0tJ26BQbWkMrif5hgBoU4pgsBJhx08RKtIrxAmJkKiwo848RGRabsZvJQDQRLyFe"
@@ -31,7 +54,8 @@ class PluginInfo(eg.PluginInfo):
         "gZEXPc4dkqx1MQD/HkCJsrIyVFV9F8mt1k4M+qZjcMCIlDNdcI8aIeY5IYF9D2jwvwCH"
         "w4FduxyRfN48t6a3bwYGHpvwSXEn3H/EQrzrlKSwNqwA/gbEbU6NEWivbAAAAABJRU5E"
         "rkJggg=="
-    )
+    ),
+)
     
     
 import wx
@@ -109,9 +133,7 @@ class Tira(eg.RawReceiverPlugin):
         dialog.sizer.Add((10,10))
         
         if dialog.AffirmedShowModal():
-            return (
-                portCtrl.GetValue(),
-            )
+            return (portCtrl.GetValue(), )
         
     
 class TransmitIR(eg.ActionClass):
@@ -177,10 +199,10 @@ class TransmitIR(eg.ActionClass):
         
         if dialog.AffirmedShowModal():
             return (
-                make_string_from_hex(codeBox.GetValue()),
-                repeatBox.GetValue(),
-                -1,
-            )
+            make_string_from_hex(codeBox.GetValue()),
+            repeatBox.GetValue(),
+            -1,
+        )
     
     
         

@@ -14,13 +14,12 @@ import subprocess
 import win32process
 import win32con
 import _winreg
+import locale
 from ftplib import FTP
 from urlparse import urlparse
 from shutil import copy2 as copy
 from os.path import basename, dirname, abspath, join, exists
-
-
-SUBWCREV_PATH = r"\Programme\TortoiseSVN\bin\SubWCRev.exe"
+import pysvn
 
 tmpDir = tempfile.mkdtemp()
 toolsDir = abspath(dirname(sys.argv[0]))
@@ -72,9 +71,9 @@ def GetSetupFiles():
     return GetFiles(files, SourcePattern + ["*.dll"])
     
 
-def UpdateVersionFile(svnRevision):
+def UpdateVersionFile(commitSvn):
     data = {}
-    versionFilePath = join(trunkDir, "eg/Version.py")
+    versionFilePath = join(trunkDir, "eg", "Version.py")
     execfile(versionFilePath, data, data)
     data['buildNum'] += 1
     data['compileTime'] = time.time()
@@ -82,8 +81,11 @@ def UpdateVersionFile(svnRevision):
     fd.write("version = " + repr(data['version']) + "\n")
     fd.write("buildNum = " + repr(data['buildNum']) + "\n")
     fd.write("compileTime = " + repr(data['compileTime']) + "\n")
-    fd.write("svnRevision = " + repr(svnRevision))
-    fd.close()        return data
+    fd.write("svnRevision = int('$LastChangedRevision$'.split()[1])")
+    fd.close()    
+    if commitSvn:
+        svn = pysvn.Client()
+        svn.checkin([trunkDir], "Created installer for %s.%i" % (data['version'], data['buildNum']))    return data
     
     
 def locate(patterns, root=os.curdir):
@@ -227,6 +229,7 @@ py2exeOptions = dict(
                 "msvcr71.dll"
             ],
             dist_dir = trunkDir,
+            custom_boot_script=join(trunkDir, "eg", "Py2ExeBootScript.py")
         )
     ),
     # The lib directory contains everything except the executables and the python dll.
@@ -307,7 +310,7 @@ Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 [Setup]
 ShowLanguageDialog=auto
 AppId=EventGhost
-AppName=EventGhost-Update %(version)s build %(buildNum)s
+AppName=EventGhost
 AppVerName=EventGhost-Update %(version)s build %(buildNum)s
 DefaultDirName={pf}\EventGhost
 DefaultGroupName=EventGhost
@@ -332,9 +335,11 @@ Filename: "{app}\EventGhost.exe"; Flags: postinstall nowait skipifsilent
 Type: filesandordirs; Name: "{app}\eg"
 
 [Files]
-;Source: "%(DIST)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "%(TRUNK)s\*.exe"; DestDir: "{app}"; Flags: ignoreversion
 %(INSTALL_FILES)s
 Source: "%(TRUNK)s\Example.xml"; DestDir: "{userappdata}\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "%(TRUNK)s\plugins\TechnoTrendIr\TTUSBIR.dll"; DestDir: "{app}\plugins\TechnoTrendIr"; Flags: ignoreversion
+Source: "%(TRUNK)s\plugins\System\VistaVolume.dll"; DestDir: "{app}\plugins\System"; Flags: ignoreversion
 
 """
 
@@ -369,29 +374,7 @@ def CompileInnoScript(innoScriptPath):
     _winreg.CloseKey(key)
     Execute(join(installPath, "ISCC.exe"), innoScriptPath)
     
-    
-def GetSvnVersion():
-    template = (
-        "Revision = $WCREV$\n"
-        "Modified = $WCMODS?True:False$\n"
-        "Date     = '$WCDATE$'\n"
-        "RevRange = '$WCRANGE$'\n"
-        "Mixed    = $WCMIXED?True:False$\n"
-        "URL      = '$WCURL$'\n"
-    )
-    fd, templatePath = tempfile.mkstemp(text=True)
-    fd = os.fdopen(fd, "wt")
-    fd.write(template)
-    fd.close()
-    fd, resultPath = tempfile.mkstemp(text=True)
-    os.close(fd)
-    Execute(SUBWCREV_PATH, trunkDir, templatePath, resultPath)
-    data = {}
-    execfile(resultPath, {}, data)
-    os.remove(templatePath)
-    os.remove(resultPath)
-    return data['Revision']
-    
+        
 
 def Execute(*args):
     si = subprocess.STARTUPINFO()
@@ -411,8 +394,8 @@ def MakeSourceArchive(outFile):
     archive.close()
 
 
-def MakeInstaller(isUpdate, makeLib, makeSourceArchive):
-    templateOptions = UpdateVersionFile(GetSvnVersion())
+def MakeInstaller(isUpdate, makeLib, makeSourceArchive, commitSvn):
+    templateOptions = UpdateVersionFile(commitSvn)
     VersionStr = templateOptions['version'] + '_build_' + str(templateOptions['buildNum'])
     templateOptions['VersionStr'] = VersionStr
     templateOptions["PYTHON_DIR"] = dirname(sys.executable)
@@ -488,7 +471,7 @@ def UploadFile(filename, url):
             self.pos = 0
             
         def read(self, size):
-            print self.pos, int(round(100.0 * self.size / self.pos))
+            print self.pos, int(round(100.0 * self.pos / self.size))
             self.pos += size
             return self.fd.read(size)
         
@@ -534,6 +517,8 @@ class MainDialog(wx.Dialog):
         self.createLib = wx.CheckBox(self, -1, "Create Lib")
         self.uploadCB = wx.CheckBox(self, -1, "Upload")
         self.uploadCB.SetValue(bool(url))
+        self.commitCB = wx.CheckBox(self, -1, "SVN Commit")
+        self.commitCB.SetValue(True)
         self.makeUpdateRadioBox = wx.RadioBox(
             self, 
             choices = ("Make Update", "Make Full Installer"),
@@ -556,6 +541,7 @@ class MainDialog(wx.Dialog):
         sizer.Add(self.createImportsCB, 0, wx.ALL, 10)
         sizer.Add(self.createLib, 0, wx.ALL, 10)
         sizer.Add(self.uploadCB, 0, wx.ALL, 10)
+        sizer.Add(self.commitCB, 0, wx.ALL, 10)
         sizer.Add(self.makeUpdateRadioBox, 0, wx.ALL, 10)
         sizer.Add(btnSizer)
 
@@ -569,7 +555,8 @@ class MainDialog(wx.Dialog):
         isUpdate = self.makeUpdateRadioBox.GetSelection() == 0
         makeLib = self.createLib.GetValue()
         makeSourceArchive = self.createSourceCB.GetValue()
-        filename = MakeInstaller(isUpdate, makeLib, makeSourceArchive)
+        commitSvn = self.commitCB.GetValue()
+        filename = MakeInstaller(isUpdate, makeLib, makeSourceArchive, commitSvn)
         if self.uploadCB.GetValue():
             UploadFile(filename, self.url)
         app.ExitMainLoop()

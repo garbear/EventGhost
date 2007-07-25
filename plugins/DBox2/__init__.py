@@ -1,15 +1,38 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "d-box2 Remote Emulator"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "external"
+eg.RegisterPlugin(
+    name = "d-box2 Remote Emulator",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "external",
+    canMultiLoad = True,
     description = (
         "Control your d-box2 set-top box over Ethernet.\n"
         "\n"
         "<p><i>(Linux/Neutrino must be installed on the box)</i>"
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACmklEQVR42o2TS0hVYRDH"
         "/3O+c859dX1mvhOzSw+kByZW1ibICIQIxSBqYUUQLdpkoW0Meu3b3AiCFrWqMFoItTGL"
@@ -26,11 +49,9 @@ class PluginInfo(eg.PluginInfo):
         "FUn61btULqQcIvizAX/BYR6+BuiUBTIkrzMw+H8g/nqtJDJuDJmEy8D3sOR3TkwjlZ6H"
         "IOf3LRSESnjE9/BJaU6KQ0mHR4LnhOLQ0uWIBFfE7/onfnxeNDm/ADdeEckvKwEjAAAA"
         "AElFTkSuQmCC"
-    )
+    ),
+)
 
-import wx
-from httplib import HTTPConnection
-    
 
 CMDS = (
     ("Left", "Left", "KEY_LEFT"),
@@ -68,8 +89,40 @@ CMDS = (
 )
 
 
+import wx
+    
+# stolen from the standart library and added a timeout to the socket
+import socket
+from httplib import HTTPConnection
+
+class MyHTTPConnection(HTTPConnection):
+    
+    def connect(self):
+        """Connect to the host and port specified in __init__."""
+        msg = "getaddrinfo returns an empty list"
+        for res in socket.getaddrinfo(self.host, self.port, 0,
+                                      socket.SOCK_STREAM):
+            af, socktype, proto, canonname, sa = res
+            try:
+                self.sock = socket.socket(af, socktype, proto)
+                self.sock.settimeout(2.0)
+                if self.debuglevel > 0:
+                    print "connect: (%s, %s)" % (self.host, self.port)
+                self.sock.connect(sa)
+            except socket.error, msg:
+                if self.debuglevel > 0:
+                    print 'connect fail:', (self.host, self.port)
+                if self.sock:
+                    self.sock.close()
+                self.sock = None
+                continue
+            break
+        if not self.sock:
+            raise socket.error(msg)
+
+
+
 class DBox2(eg.PluginClass):
-    canMultiLoad = True
     
     def __init__(self):
         self.host = "127.0.0.1"
@@ -107,7 +160,7 @@ class DBox2(eg.PluginClass):
     
     
     def SendCommand(self, key):
-        conn = HTTPConnection(self.host)
+        conn = MyHTTPConnection(self.host)
         if self.useRcem:
             conn.request("GET", "/control/rcem?" + key)
         else:

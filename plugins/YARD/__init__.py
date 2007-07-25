@@ -1,23 +1,24 @@
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Y.A.R.D."
-    author = "Bitmonster"
-    version = "0.0.1"
-    kind = "remote"
+eg.RegisterPlugin(
+    name = "Y.A.R.D.",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "remote",
     description = (
-        'Hardware plugin for the Y.A.R.D. IR-transceiver from Andre Weber.'
+        'Hardware plugin for the <a href="http://www.htpc-news.de/yard/">'
+        'Y.A.R.D.</a> IR-transceiver from Andre Weber.'
         '\n\n<p>'
-        '<a href=http://eldo.gotdns.com/yard/index.html>'
-        'Y.A.R.D. Homepage (german only)<p>'
+        '<a href="http://www.htpc-news.de/yard/">'
         '<img src="logo.png" alt="Y.A.R.D." /></a>'
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAfklEQVR42rWTCQrAMAgE"
         "4/8fbYnV4rG22FIJSYjsuLloDYOlrUXStPsCoS5pQa6IF+55AGRhDgOZ0MFUzIwMKf3M"
         "JaG5cADJUBXrOnJBwXqGAKjffwV40aWIjp4BTeX/APAKGwA8xCkAXmOBNKefq+t62v7b"
         "pzyJ2880Ee/xAO1+Z/119F9AAAAAAElFTkSuQmCC"
-    )
+    ),
+)
 
 
 import wx
@@ -130,13 +131,16 @@ class YARD(eg.PluginClass):
                 buttons.append("JogLeft")
                 self.TriggerEvent("+".join(buttons))
             elif eventString == "070000001081FF":
-                buttons = ["Button%i" % i for i, btn in enumerate(self.buttons) if btn]
+                buttons = [
+                    "Button%i" % i 
+                    for i, btn in enumerate(self.buttons) if btn
+                ]
                 buttons.append("JogRight")
                 self.TriggerEvent("+".join(buttons))
             else:
                 self.TriggerEvent(eventString)
             return
-        if self.mapTable.has_key(eventString):
+        if eventString in self.mapTable:
             eventString, timeout = self.mapTable[eventString]
         else:
             if self.disableUnmapped:
@@ -264,11 +268,7 @@ class SendRemoteKey(eg.ActionClass):
             self.remoteName = remoteCtrl.GetStringSelection()
             self.keyName = keyCtrl.GetStringSelection()
             self.numRepeats = numRepeatsCtrl.GetValue()
-            return (
-                self.remoteName, 
-                self.keyName, 
-                self.numRepeats
-            )
+            return (self.remoteName, self.keyName, self.numRepeats)
         
         
         

@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import threading
 import pythoncom
 import types
@@ -19,29 +41,20 @@ CORE_PLUGINS = (
 
 class ActionThread(ThreadWorker):
     
-    @eg.logit(print_return=True) 
+    @eg.LogItWithReturn
     def StartSession(self, filename):
         eg.eventTable.clear()
-        eg.corePlugins.clear()
-        from InternalActionMixin import ActionClass, ActionWithStringParameter
-        eg.SetAttr("ActionClass", ActionClass)
-        eg.SetAttr("ActionWithStringParameter", ActionWithStringParameter)
         for pluginIdent in CORE_PLUGINS:
             try:
-                plugin = eg.OpenPlugin(pluginIdent)
+                plugin = eg.OpenPlugin(pluginIdent, None, ())
                 plugin.__start__()
                 plugin.info.isStarted = True
-                plugin.info.label = plugin.info.name
-                eg.corePlugins[plugin] = 1
             except:
                 eg.PrintTraceback()
-        from ActionClass import ActionClass, ActionWithStringParameter        
-        eg.SetAttr("ActionClass", ActionClass)
-        eg.SetAttr("ActionWithStringParameter", ActionWithStringParameter)
         start = clock()
-        eg.mainFrame.OnAutoLoad(filename)
-        eg.notice("XML loaded in %f seconds." % (clock() - start))
-        eg.SetProgramCounter((eg.treeCtrl.document.autostartMacro, None))
+        eg.document.Load(filename)
+        eg.DebugNote("XML loaded in %f seconds." % (clock() - start))
+        eg.SetProgramCounter((eg.document.autostartMacro, None))
         eg.RunProgram()
         
             
@@ -56,10 +69,9 @@ class ActionThread(ThreadWorker):
         eg.SetProcessingState(1, event)
         
         
-    @eg.logit()
+    @eg.LogIt
     def StopSession(self):
-        eg.treeCtrl.document.autostartMacro.UnloadPlugins()
-        eg.notice("closing default plugins")
+        eg.document.autostartMacro.UnloadPlugins()
         for pluginIdent in CORE_PLUGINS:
             try:
                 plugin = getattr(eg.plugins, pluginIdent)
@@ -67,5 +79,4 @@ class ActionThread(ThreadWorker):
                 eg.ClosePlugin(plugin)
             except:
                 eg.PrintTraceback()
-        eg.notice("StopSession done")
         

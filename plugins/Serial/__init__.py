@@ -1,10 +1,33 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Serial Port"
-    author = "Bitmonster"
-    version = "1.1.0"
-    description = "Arbitrary communication through a serial port."
+eg.RegisterPlugin(
+    name = "Serial Port",
+    author = "Bitmonster",
+    version = "1.1." + "$LastChangedRevision$".split()[1],
+    description = "Arbitrary communication through a serial port.",
+)
 
 
     
@@ -78,6 +101,7 @@ class Serial(eg.RawReceiverPlugin):
                 rtscts=rtscts,
             )
         except:
+            eg.PrintTraceback()
             self.serial = None
             raise eg.Exception("Can't open COM port.")
         self.serial.timeout = 1.0
@@ -262,6 +286,17 @@ class Serial(eg.RawReceiverPlugin):
         
         
     class Write(eg.ActionWithStringParameter):
+        description = (
+            "Writes some text through the serial port."
+            "\n\n<p>"
+            "You can use Python string escapes to send non-printable "
+            "characters. Some examples:<p>"
+            "\\n will send a Linefeed (LF)<br>"
+            "\\r will send a Carriage Return (CR)<br>"
+            "\\t will send a Horizontal Tab (TAB)<br>"
+            "\\x0B will send the ASCII character with the hexcode 0B<br>"
+            "\\\\ will send a single Backslash."            
+        )
         
         def __call__(self, data):
             data = eg.ParseString(data, self.replaceFunc)
@@ -335,8 +370,8 @@ class Serial(eg.RawReceiverPlugin):
             
             if dialog.AffirmedShowModal():
                 if rb1.GetValue():
-                    return None, 0.0
+                    return (None, 0.0)
                 else:
-                    return countCtrl.GetValue(), timeCtrl.GetValue() / 1000.0
+                    return (countCtrl.GetValue(), timeCtrl.GetValue() / 1000.0)
         
         

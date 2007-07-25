@@ -1,8 +1,27 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
 # $LastChangedDate$
 # $LastChangedRevision$
 # $LastChangedBy$
 
 import eg
+eg.DebugNote("Loading UndoableCommands")
 import wx
 import xml.etree.cElementTree as ElementTree
 
@@ -11,32 +30,32 @@ class Text:
     
     
     
-class CmdNewItem:
+class NewItem:
     """
     Abstract class for the creation of new tree items.
     """
     
-    def Do(self, item):
+    def StoreItem(self, item):
         self.positionData = item.GetPositionData()
         self.cls = item.__class__
         item.document.AppendUndoHandler(self)
     
     
+    @eg.LogIt
     def Undo(self, document):
-        eg.whoami()
         item = self.positionData.GetItem()
         self.data = item.GetFullXml()
         item.Delete()
         
         
+    @eg.LogIt
     def Redo(self, document):
-        eg.whoami()
         item = document.RestoreItem(self.positionData, self.data)
         item.Select()
     
     
     
-class CmdNewPlugin(CmdNewItem):
+class NewPlugin(NewItem):
     """
     Create a new PluginItem if the user has choosen to do so from the menu
     or toolbar.
@@ -44,16 +63,13 @@ class CmdNewPlugin(CmdNewItem):
     
     def Do(self, document):
         """ Handle the menu command 'Add Plugin...'. """
-        def ShowDialog():
-            from eg.Dialogs.AddPluginDialog import AddPluginDialog
-            return AddPluginDialog().DoModal()
-        pluginInfo = eg.CallWait(ShowDialog)
+        pluginInfo = eg.AddPluginDialog(document.frame).DoModal()
         
         if pluginInfo is None:
             return
 
         self.name = eg.text.MainFrame.Menu.AddPlugin.replace("&", "")
-        tree = document.tree
+
         pluginItem = document.PluginItem.Create(
             document.autostartMacro,
             -1,
@@ -61,24 +77,31 @@ class CmdNewPlugin(CmdNewItem):
         )
         pluginItem.Select()
         if pluginItem.executable:
-            if pluginItem.NeedsConfiguration():
-                result = eg.CallWait(pluginItem.DoConfigure)
-                if result is False:
+            if pluginItem.NeedsStartupConfiguration():
+                if not CmdConfigure().Do(pluginItem):
                     pluginItem.Delete()
-                    return
+                    return None
+#                args = pluginItem.ProcessConfigureDialog()
+#                if args is None:
+#                    pluginItem.Delete()
+#                    return None
+#                else:
+#                    pluginItem.SetParams(*args)
+#                    pluginItem.Refresh()
             eg.actionThread.Call(pluginItem.Execute)
-        CmdNewItem.Do(self, pluginItem)
+        self.StoreItem(pluginItem)
+        return pluginItem
        
             
 
-class CmdNewFolder(CmdNewItem):
+class NewFolder(NewItem):
     """
     Create a new FolderItem if the user has choosen to do so from the menu
     or toolbar.
     """
     
+    @eg.LogIt
     def Do(self, document):
-        eg.whoami()
         self.name = eg.text.MainFrame.Menu.NewFolder.replace("&", "")
         obj = document.selection
         if isinstance(obj, (document.MacroItem, document.AutostartItem)):
@@ -103,14 +126,15 @@ class CmdNewFolder(CmdNewItem):
             pos, 
             name=eg.text.General.unnamedFolder
         )
-        CmdNewItem.Do(self, item)
+        self.StoreItem(item)
+        item.tree.SetFocus()
         item.Select()
         item.tree.EditLabel(item.id)
         return item
     
     
     
-class CmdNewMacro(CmdNewItem):
+class NewMacro(NewItem):
     """
     Create a new MacroItem if the user has choosen to do so from the menu
     or toolbar.
@@ -142,8 +166,8 @@ class CmdNewMacro(CmdNewItem):
             name=eg.text.General.unnamedMacro
         )
         item.Select()
-        CmdNewItem.Do(self, item)
-        actionObj = CmdNewAction().Do(document)
+        self.StoreItem(item)
+        actionObj = NewAction().Do(document)
         if actionObj:
             label = actionObj.GetLabel()
             item.RenameTo(label)
@@ -152,35 +176,32 @@ class CmdNewMacro(CmdNewItem):
 
 
 
-class CmdNewAction(CmdNewItem):
+class NewAction(NewItem):
     """
     Create a new ActionItem if the user has choosen to do so from the menu
     or toolbar.
     """
     
+    @eg.LogIt
     def Do(self, document):
-        eg.whoami()
         self.name = eg.text.MainFrame.Menu.NewAction.replace("&", "")
         # let the user choose an action
-        def ShowDialog():
-            from eg.Dialogs.AddActionDialog import AddActionDialog
-            return AddActionDialog().DoModal()
-        action = eg.CallWait(ShowDialog)
+        action = eg.AddActionDialog(document.frame).DoModal()
         
         # if user canceled the dialog, take a quick exit
         if action is None:
             return None
         
         # find the right insert position
-        selectedItem = document.selection
-        if isinstance(selectedItem, (document.MacroItem, document.AutostartItem)):
+        selection = document.selection
+        if isinstance(selection, (document.MacroItem, document.AutostartItem)):
             # if a macro is selected, append it as last element of the macro
-            parent = selectedItem
+            parent = selection
             pos = -1
         else:
-            parent = selectedItem.parent
+            parent = selection.parent
             childs = parent.childs
-            for pos in range(childs.index(selectedItem) + 1, len(childs)):
+            for pos in range(childs.index(selection) + 1, len(childs)):
                 if not isinstance(childs[pos], document.EventItem):
                     break
             else:
@@ -197,17 +218,25 @@ class CmdNewAction(CmdNewItem):
         )
         item.Select()
         
-        if item.NeedsConfiguration():
-            result = eg.CallWait(item.DoConfigure)
-            if result is False:
-                item.Delete()
-                return None
-        CmdNewItem.Do(self, item)
+        if item.NeedsStartupConfiguration():
+            if item.NeedsStartupConfiguration():
+                if not CmdConfigure().Do(item):
+                    item.Delete()
+                    return None
+#            args = item.ProcessConfigureDialog()
+#            if args is None:
+#                item.Delete()
+#                return None
+#            else:
+#                item.SetParams(*args)
+#                item.Refresh()
+                
+        self.StoreItem(item)
         return item
     
     
 
-class CmdNewEvent(CmdNewItem):
+class NewEvent(NewItem):
     
     def Do(self, document, label=None, parent=None, pos=-1):
         self.name = eg.text.MainFrame.Menu.NewEvent.replace("&", "")
@@ -232,7 +261,7 @@ class CmdNewEvent(CmdNewItem):
             item.Select()
             item.tree.EditLabel(item.id)
             
-        CmdNewItem.Do(self, item)
+        self.StoreItem(item)
         return item
     
 
@@ -282,20 +311,25 @@ class CmdPaste:
         tree = document.tree
         self.items = []
         is_internal_paste = False
+        selectionObj = tree.GetPyData(tree.GetSelection())
         if not wx.TheClipboard.Open():
             return
         try:
             dataObj = wx.CustomDataObject("DragEventItem")
             if wx.TheClipboard.GetData(dataObj):
                 selectedObj = tree.GetPyData(tree.GetSelection())
-                if selectedObj.DropTest(EventItem):
+                if selectedObj.DropTest(eg.EventItem):
                     label = dataObj.GetData()
-                    tree.OnNewEvent(label)
+                    parent = selectionObj.parent
+                    pos = parent.childs.index(selectionObj)
+                    NewEvent().Do(
+                        tree.document, 
+                        label)
+                    #tree.OnNewEvent(label)
                 return
             dataObj = wx.TextDataObject()
             if not wx.TheClipboard.GetData(dataObj):
                 return
-            selectionObj = tree.GetPyData(tree.GetSelection())
             clipboardData = dataObj.GetText()
             is_internal_paste = (clipboardData == tree.clipboardData)
             xmlTree = ElementTree.fromstring(clipboardData.encode("utf-8"))
@@ -345,7 +379,7 @@ class CmdPaste:
                     pos = before.parent.childs.index(before)
                     if pos + 1 == len(before.parent.childs):
                         pos = -1
-                obj = childCls(targetObj, childXmlNode)
+                obj = eg.actionThread.CallWait(childCls, targetObj, childXmlNode)
                 obj.RestoreState()
                 targetObj.AddChild(obj, pos)
                 self.items.append(obj.GetPositionData())
@@ -403,7 +437,8 @@ class CmdRename:
 class CmdToggleEnable:
     name = eg.text.MainFrame.Menu.Disabled.replace("&", "")
     
-    def __init__(self, document, item):
+    def __init__(self, document):
+        item = document.selection
         self.positionData = item.GetPositionData()
         self.state = not item.isEnabled
         item.Enable(self.state)
@@ -426,6 +461,7 @@ class CmdToggleEnable:
 class CmdMoveTo:
     name = "Move Item"
     
+    @eg.LogIt
     def __init__(self, document, item, parent, pos):
         tree = document.tree
         tmp = tree.GetFirstVisibleItem()
@@ -439,8 +475,8 @@ class CmdMoveTo:
         document.AppendUndoHandler(self)
     
     
+    @eg.LogIt
     def Undo(self, document):
-        eg.whoami()
         parent1, pos1 = self.newPositionData.GetPosition()
         item = parent1.childs[pos1]
         parent = item.tree.root
@@ -460,3 +496,72 @@ class CmdMoveTo:
     Redo = Undo
         
 
+
+class CmdConfigure:
+    
+    def Try(self, document):
+        item = document.selection
+        if isinstance(item, eg.ActionItem):
+            eg.Greenlet(self.Do).switch(item)
+        
+    
+    def Do(self, item):
+        executable = item.executable
+        if executable is None:
+            return False
+        if item.openConfigDialog:
+            item.openConfigDialog.Raise()
+            return False
+        
+        self.oldArgumentString = item.GetArgumentString()
+        oldArgs = item.args
+        self.name = eg.text.MainFrame.Menu.Edit.replace("&", "")
+        
+        wasApplied = False
+        while True:
+            eg.SetAttr("currentConfigureItem", item)
+            try:
+                newArgs = executable.Configure(*item.args)
+            except:
+                eg.PrintError("Error while configuring: %s", item.GetLabel())
+                raise
+            if item.openConfigDialog is not None:
+                userAction = item.openConfigDialog.result
+                if userAction == wx.ID_CANCEL:
+                    item.openConfigDialog.Destroy()
+                    del item.openConfigDialog
+                    if wasApplied:
+                        item.SetParams(*oldArgs)
+                    return False
+                elif userAction == wx.ID_OK:
+                    item.openConfigDialog.Destroy()
+                    del item.openConfigDialog
+                    break
+                elif userAction == wx.ID_APPLY:
+                    item.SetParams(*newArgs)
+                    item.Refresh()
+                    wasApplied = True
+                    continue
+            elif newArgs is None:
+                return False
+        item.SetParams(*newArgs)
+        newArgumentString = item.GetArgumentString()
+        if self.oldArgumentString != newArgumentString:
+            self.positionData = item.GetPositionData()
+            item.document.AppendUndoHandler(self)
+            item.Refresh()
+        return True
+    
+    
+    def Undo(self, document):
+        item = self.positionData.GetItem()
+        argumentString = item.GetArgumentString()
+        eg.TreeLink.StartUndo()
+        item.SetArgumentString(self.oldArgumentString)
+        eg.TreeLink.StopUndo()
+        self.oldArgumentString = argumentString
+        item.Refresh()
+        item.Select()
+
+    Redo = Undo
+        

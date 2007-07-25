@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 import eg
 from eg.IconTools import GetIcon
@@ -30,16 +52,18 @@ class ToolBar(wx.ToolBar):
     
     def __init__(self, *args, **kwargs):
         wx.ToolBar.__init__(self, *args, **kwargs)
+        #self.SetThemeEnabled(True)
         self.Bind(wx.EVT_TOOL_ENTER, self.OnEvent)
         self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftClick)
         self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
-        self.Bind(wx.EVT_SIZE, self.OnSize)
+        #self.Bind(wx.EVT_SIZE, self.OnSize)
         self.curTool = -1
         self.lastClickedTool = None
+        #self.SetBackgroundColour(wx.SystemSettings_GetColour(wx.SYS_COLOUR_3DSHADOW))
         
-        
+
+    @eg.LogIt
     def OnSize(self, event):
-        eg.whoami()
         event.Skip()
         
         
@@ -96,13 +120,13 @@ class ToolBar(wx.ToolBar):
         image = GetIcon("images/" + name + ".png")
         func = getattr(self.parent, "OnCmd" + name)
         menuname = getattr(self.myStrings, name)
-        self.AddCheckLabelTool(id, "", image, shortHelp=menuname)
+        self.AddCheckLabelTool(id, None, image, shortHelp=menuname)
         self.Bind(wx.EVT_TOOL, func, id=id)
         setattr(self.buttons, name, ToolBarButton(self, id))
         
         
+    @eg.LogIt
     def OnLeftClick(self, event):
-        eg.whoami()
         x, y = event.GetPosition()
         item = self.FindToolForPosition(x, y)
         if item:
@@ -120,4 +144,11 @@ class ToolBar(wx.ToolBar):
                 obj.upFunc(event)
         event.Skip()
                 
+                
+    if eg.debugLevel:
+        @eg.LogIt
+        def __del__(self):
+            pass
+        
+        
                 

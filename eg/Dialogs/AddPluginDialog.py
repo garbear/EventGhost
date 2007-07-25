@@ -1,10 +1,31 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import os
 import wx
 
 import eg
 from eg.IconTools import GetIcon, PilToBitmap
-from eg.Controls.SizeGrip import SizeGrip
-
+from ActionThread import CORE_PLUGINS
         
 kindTags = ["remote", "program", "external", "other"]
 
@@ -27,7 +48,7 @@ class Text:
         "instance of this plugin in your configuration."
     remotePlugins = "Remote Receiver"
     programPlugins = "Program Control"
-    externalPlugins = "External Hardware Control"
+    externalPlugins = "External Equipment"
     otherPlugins = "Other"
     author = "Author:"
     version = "Version:"
@@ -38,92 +59,78 @@ Text = eg.GetTranslation(Text)
 
 class AddPluginDialog(eg.Dialog):
 
-    def __init__(self):
+    def __init__(self, parent):
         self.resultData = None
-        self.resize2pending = False
+
         eg.Dialog.__init__(
             self, 
-            None, 
+            parent, 
             -1, 
             Text.title,
             style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER
         )
 
-        splitter = wx.SplitterWindow(
+        splitterWindow = wx.SplitterWindow(
             self,
             style = wx.SP_LIVE_UPDATE
                 |wx.CLIP_CHILDREN
                 |wx.NO_FULL_REPAINT_ON_RESIZE
         )
-        self.splitter = splitter
+        self.splitterWindow = splitterWindow
 
-        self.tree = tree = wx.TreeCtrl(
-            splitter,
+        self.treeCtrl = treeCtrl = wx.TreeCtrl(
+            splitterWindow,
             style=wx.TR_SINGLE
                 |wx.TR_HAS_BUTTONS
                 |wx.TR_HIDE_ROOT
                 |wx.TR_LINES_AT_ROOT
         )
         
-        tree.SetMinSize((170, 200))
+        treeCtrl.SetMinSize((170, 200))
 
-        imageList = wx.ImageList(16, 16)
-        tree.SetImageList(imageList)
+        imageList = self.imageList = wx.ImageList(16, 16)
         imageList.Add(GetIcon("images/plugin.png"))
         imageList.Add(GetIcon("images/folder.png"))
-        self.imageList = imageList
+        treeCtrl.SetImageList(imageList)
         
-        root = tree.AddRoot("")
+        root = treeCtrl.AddRoot("")
         typeIds = {
-            kindTags[0]: tree.AppendItem(root, Text.remotePlugins, 1),
-            kindTags[1]: tree.AppendItem(root, Text.programPlugins, 1),
-            kindTags[2]: tree.AppendItem(root, Text.externalPlugins, 1),
-            kindTags[3]: tree.AppendItem(root, Text.otherPlugins, 1),
+            kindTags[0]: treeCtrl.AppendItem(root, Text.remotePlugins, 1),
+            kindTags[1]: treeCtrl.AppendItem(root, Text.programPlugins, 1),
+            kindTags[2]: treeCtrl.AppendItem(root, Text.externalPlugins, 1),
+            kindTags[3]: treeCtrl.AppendItem(root, Text.otherPlugins, 1),
         }
         self.typeIds = typeIds
         itemToSelect = typeIds["remote"]
         
-        pluginList = []
-        for item in os.listdir("Plugins"):
-            if item.startswith("."):
+        for info in eg.GetPluginInfoList():
+            if info.kind in ("hidden", "core"):
                 continue
-            file_name, extension = os.path.splitext(item)
-            if os.path.isdir("Plugins/" + item) or extension in (".py", ".egp"):
-                if pluginList.count(file_name) == 0:
-                    pluginList.append(file_name)
-        defaultTarget = typeIds["other"]
-        for filename in pluginList:
-            info = eg.GetPluginInfo(filename)
-            idx = 0
-            name = filename
-            target = defaultTarget
-            if info:
-                if info.kind == "hidden":
-                    continue
-                name = info.name
-                if info.icon:
-                    idx = imageList.Add(PilToBitmap(info.icon))
-                target = typeIds.get(info.kind, target)
-            id = tree.AppendItem(target, name, idx)
-            tree.SetPyData(id, info)
-            if filename == config.lastSelection:
+            if info.icon:
+                idx = imageList.Add(PilToBitmap(info.icon))
+            else:
+                idx = 0
+
+            id = treeCtrl.AppendItem(typeIds[info.kind], info.name, idx)
+            treeCtrl.SetPyData(id, info)
+            if info.path == config.lastSelection:
                 itemToSelect = id
                 
         
         for kind, treeId in typeIds.iteritems():
             if config.expandDict.get(kind, True):
-                tree.Expand(typeIds[kind])
+                treeCtrl.Expand(typeIds[kind])
             else:
-                tree.Collapse(typeIds[kind])
+                treeCtrl.Collapse(typeIds[kind])
         
-        tree.ScrollTo(itemToSelect)
+        treeCtrl.ScrollTo(itemToSelect)
         
         self.htmlTemplate = (
             '<html><body bgcolor="#%02X%02X%02X">%%s</body></html>' 
                 % self.GetBackgroundColour().Get()
         )
 
-        rightPanel = wx.Panel(splitter)
+        rightPanel = wx.Panel(splitterWindow)
         rightSizer = wx.BoxSizer(wx.VERTICAL)
         rightPanel.SetSizer(rightSizer)
         
@@ -153,36 +160,36 @@ class AddPluginDialog(eg.Dialog):
         
         rightSizer.Add(staticBoxSizer, 1, wx.EXPAND|wx.LEFT, 5)
         
-        splitter.SplitVertically(self.tree, rightPanel)
-        splitter.SetMinimumPaneSize(60)
-        splitter.SetSashGravity(0.0)
-        splitter.UpdateSize()
+        splitterWindow.SplitVertically(self.treeCtrl, rightPanel)
+        splitterWindow.SetMinimumPaneSize(60)
+        splitterWindow.SetSashGravity(0.0)
+        splitterWindow.UpdateSize()
 
         self.buttonRow = eg.ButtonRow(self, (wx.ID_OK, wx.ID_CANCEL))
         self.okButton = self.buttonRow.okButton
         self.okButton.Enable(False)
         
         mainSizer = wx.BoxSizer(wx.VERTICAL)
-        mainSizer.Add(splitter, 1, wx.EXPAND|wx.ALL, 5)
+        mainSizer.Add(splitterWindow, 1, wx.EXPAND|wx.ALL, 5)
         mainSizer.Add(self.buttonRow.sizer, 0, wx.EXPAND)
         
         self.SetSizerAndFit(mainSizer)
         #minSize = mainSizer.GetMinSize()
         #self.SetMinSize(minSize)
         self.SetSize(config.size)
-        splitter.SetSashPosition(config.splitPosition)
+        splitterWindow.SetSashPosition(config.splitPosition)
         if config.position:
             self.SetPosition(config.position)
-        tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelect)
-        tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated)
-        tree.SelectItem(itemToSelect)
+        treeCtrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelect)
+        treeCtrl.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated)
+        treeCtrl.SelectItem(itemToSelect)
 
 
     def OnSelect(self, event):
         item = event.GetItem()
-        self.resultData = info = self.tree.GetPyData(item)       
+        self.resultData = info = self.treeCtrl.GetPyData(item)       
         if info is None:
-            name = self.tree.GetItemText(item)
+            name = self.treeCtrl.GetItemText(item)
             description = Text.noInfo
             self.authorLabel.SetLabel("")
             self.authorText.SetLabel("")
@@ -208,7 +215,7 @@ class AddPluginDialog(eg.Dialog):
         if (
             info
             and info.pluginCls 
-            and not info.pluginCls.canMultiLoad 
+            and not info.canMultiLoad 
             and info.instances
         ):
             wx.MessageBox(
@@ -222,8 +229,8 @@ class AddPluginDialog(eg.Dialog):
         
         
     def OnItemActivated(self, event):
-        item = self.tree.GetSelection()
-        info = self.tree.GetPyData(item)
+        item = self.treeCtrl.GetSelection()
+        info = self.treeCtrl.GetPyData(item)
         if info is not None:
             if self.CheckMultiload():
                 self.EndModal(wx.ID_OK)
@@ -233,8 +240,8 @@ class AddPluginDialog(eg.Dialog):
             event.Skip()
         
         
+    @eg.LogIt
     def OnOK(self, event):
-        eg.whoami()
         if self.CheckMultiload():
             event.Skip()
         
@@ -246,9 +253,9 @@ class AddPluginDialog(eg.Dialog):
     def Destroy(self):
         config.size = self.GetSizeTuple()
         config.position = self.GetPositionTuple()
-        config.splitPosition = self.splitter.GetSashPosition()
+        config.splitPosition = self.splitterWindow.GetSashPosition()
         expandDict = {}
         for kind, treeId in self.typeIds.iteritems():
-            expandDict[kind] = self.tree.IsExpanded(treeId)
-        config.expandDict = expandDict        
+            expandDict[kind] = self.treeCtrl.IsExpanded(treeId)
+        config.expandDict = expandDict   
         wx.Dialog.Destroy(self)

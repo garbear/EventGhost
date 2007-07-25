@@ -1,35 +1,40 @@
-#
-# Plugins/Winamp/__init__.py
-#
-# Copyright (C) 2006 Bitmonster and Matthew Jacob Edwards
-#
-# This file is a plugin for EventGhost.
-#
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org> 
+#                    and Matthew Jacob Edwards
+# 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # EventGhost is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 
 
 # Every plugin code should begin with the import of 'eg'
 import eg
 
 # and expose some information about itself through an eg.PluginInfo subclass
-class PluginInfo(eg.PluginInfo):
-    name = "Winamp"
-    author = "Bitmonster and Matthew Jacob Edwards"
-    version = "1.0.2"
-    kind = "program"
-    description = "Adds support functions to control Winamp"
+eg.RegisterPlugin(
+    name = "Winamp",
+    author = "Bitmonster & Matthew Jacob Edwards",
+    version = "1.2." + "$LastChangedRevision$".split()[1],
+    kind = "program",
+    description = (
+        'Adds actions to control <a href="http://www.winamp.com/">Winamp</a>.'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACDElEQVR42pWTT0gUcRTH"
         "P7OQemvKQ7pSbkQgHWLm0k2cgxpUsLOBFUS4UmCBZEuHLsHugBAeLPca4U4RmILsinno"
@@ -43,7 +48,8 @@ class PluginInfo(eg.PluginInfo):
         "t3Cwiuz8IlGjEX/PgJOzu6Hcre1sfHU1kXj0fFiyUlBcRRtdYm9bHzdCNzd7vgJcEuho"
         "rn01er1eMYwFQk/MaV/zJaVSK1caKuei/Vh1XG7wKP0vLM0+Dv5jmCpOo2/DZv93nP8A"
         "opkfXpsJ2wUAAAAASUVORK5CYII="
-    )
+    ),
+)
 
 
 # Now we import some other things we will need later

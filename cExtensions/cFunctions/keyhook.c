@@ -4,16 +4,17 @@
 #include "utils.h"
 
 
-
 PyObject* g_KeyboardCallback;
 PyObject* g_MouseCallback = NULL;
 PyObject* idle_func;
 PyObject* unidle_func;
 HANDLE waitThread;
-static DWORD  g_HookThreadId, g_WaitThreadId;
 static HANDLE waitEvent;
 static HANDLE startupEvent;
 static HINSTANCE hMod;
+
+static DWORD  g_HookThreadId = 0;
+static DWORD g_WaitThreadId = 0;
 HHOOK oldKeyHook = NULL;
 HHOOK oldMouseHook = NULL;
 BYTE key_state[256];
@@ -103,7 +104,6 @@ int ProcessInputCommand(HRAWINPUT hRawInput)
 	return 1;
 }
 	
-
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -219,7 +219,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 	if(g_KeyboardCallback == NULL)
 		goto out;
 	
-	DEBUG("KeyboardProc");
+	//DEBUG("KeyboardProc");
 	kbd = (PKBDLLHOOKSTRUCT)lParam;
 	flags = kbd->flags;
 	isAltDown = flags & LLKHF_ALTDOWN;
@@ -370,8 +370,10 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 	PyObject *arglist, *pyRes;
 	PyGILState_STATE gil;
 	PMSLLHOOKSTRUCT mhs;
-	char *resString;
-	static BOOL mouseState[3] = {FALSE, FALSE, FALSE};
+	static BOOL mouseState[5] = {FALSE, FALSE, FALSE, FALSE, FALSE};
+	char *mesg = NULL;
+	int buttonNum = 0;
+	int param = 0;
 	
 	lastTickCount = GetTickCount();
 	if (isInIdle)
@@ -379,14 +381,21 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 	if (nCode == HC_ACTION)
 	{	
 		mhs = (PMSLLHOOKSTRUCT) lParam;
-		resString = NULL;
 		switch(wParam)
 		{
 			//case WM_LBUTTONDOWN:
 			//	DEBUG("WM_LBUTTONDOWN");
+			//	mouseState[0] = TRUE;
+			//	mesg = "LeftButton";
+			//	buttonNum = 0;
+			//	param = 1;
 			//	break;
 			//case WM_LBUTTONUP:
 			//	DEBUG("WM_LBUTTONUP");
+			//	mouseState[0] = FALSE;
+			//	mesg = "LeftButton";
+			//	buttonNum = 0;
+			//	param = 0;
 			//	break;
 			//case WM_MOUSEMOVE:
 			//	DEBUG("WM_MOUSEMOVE");
@@ -394,38 +403,72 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 			//case WM_MOUSEWHEEL:
 			//	DEBUG("WM_MOUSEWHEEL");
 			//	break;
+			case WM_MBUTTONDOWN:
+				DEBUG("WM_MBUTTONDOWN");
+				mouseState[1] = TRUE;
+				mesg = "MiddleButton";
+				buttonNum = 1;
+				param = 1;
+				break;
+			case WM_MBUTTONUP:
+				DEBUG("WM_MBUTTONUP");
+				mouseState[1] = FALSE;
+				mesg = "MiddleButton";
+				buttonNum = 1;
+				param = 0;
+				break;
 			//case WM_RBUTTONDOWN:
 			//	DEBUG("WM_RBUTTONDOWN");
+			//	mouseState[2] = TRUE;
+			//	mesg = "RightButton";
+			//	buttonNum = 2;
+			//	param = 1;
 			//	break;
 			//case WM_RBUTTONUP:
 			//	DEBUG("WM_RBUTTONUP");
+			//	mouseState[2] = FALSE;
+			//	mesg = "RightButton";
+			//	buttonNum = 2;
+			//	param = 0;
 			//	break;
-			case WM_MBUTTONDOWN:
-				//DEBUG("WM_MBUTTONDOWN");
-				mouseState[1] = TRUE;
-				resString = "MiddleButtonDown";
+			case WM_XBUTTONDOWN:
+				DEBUG("WM_XBUTTONDOWN");
+				if (HIWORD(mhs->mouseData) == XBUTTON1)
+				{
+					mouseState[3] = TRUE;
+					mesg = "XButton1";
+					buttonNum = 3;
+				}else{
+					mouseState[4] = TRUE;
+					mesg = "XButton2";
+					buttonNum = 4;
+				}
+				param = 1;
 				break;
-			case WM_MBUTTONUP:
-				//DEBUG("WM_MBUTTONUP");
-				mouseState[1] = FALSE;
-				resString = "MiddleButtonUp";
+			case WM_XBUTTONUP:
+				DEBUG("WM_XBUTTONUP");
+				if (HIWORD(mhs->mouseData) == XBUTTON1)
+				{
+					mouseState[3] = FALSE;
+					mesg = "XButton1";
+					buttonNum = 3;
+				}else{
+					mouseState[4] = FALSE;
+					mesg = "XButton2";
+					buttonNum = 4;
+				}
+				param = 0;
 				break;
-			//case WM_XBUTTONDOWN:
-			//	DEBUG("WM_XBUTTONDOWN");
-			//	break;
-			//case WM_XBUTTONUP:
-			//	DEBUG("WM_XBUTTONUP");
-			//	break;
 			//case WM_XBUTTONDBLCLK:
 			//	DEBUG("WM_XBUTTONDBLCLK");
 			//	break;
 			//default:
 			//	DEBUG("unknown mouse message");
 		}
-		if (resString && g_MouseCallback)
+		if (mesg && g_MouseCallback)
 		{
 			gil = PyGILState_Ensure();
-			arglist = Py_BuildValue("(s)", resString);
+			arglist = Py_BuildValue("(sii)", mesg, buttonNum, param);
 
 			pyRes = PyObject_CallObject(g_MouseCallback, arglist);
 			if(pyRes == NULL)
@@ -656,7 +699,6 @@ RegisterKeyhook(PyObject *self, PyObject *args)
 	DEBUG("RegisterKeyhook");
 	waitEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	startupEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
 	handle = CreateThread(NULL, 0, WaitThread, NULL, 0, &g_WaitThreadId);
 	switch(WaitForSingleObject(startupEvent, 3000))
 	{

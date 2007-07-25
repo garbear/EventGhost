@@ -1,6 +1,29 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import cPickle as pickle
 import types
-
+import sys
+import eg
 
 
 class Section:
@@ -15,7 +38,7 @@ class Section:
                     
                     
     def setdefault(self, key, default):
-        if not self.__dict__.has_key(key):
+        if key not in self.__dict__:
             setattr(self, key, Section(default))
         else:
             section = self.__dict__[key]
@@ -67,7 +90,7 @@ def PySave(obj, filename):
     fd.close()
     
     
-def _make_section(name, bases, dict):
+def _MakeSectionMetaClass(name, bases, dict):
     obj = Section()
     obj.__dict__ = dict
     return obj
@@ -75,10 +98,15 @@ def _make_section(name, bases, dict):
     
 def PyLoad(filename, defaults=None):
     obj = Section(defaults)
-    execDict = {"__metaclass__": _make_section}
+    execDict = {"__metaclass__": _MakeSectionMetaClass}
+    
+    # BUG: of the python function 'execfile'. It doesn't handle unicode
+    # filenames right.
+    filename = filename.encode(sys.getfilesystemencoding())
     try:
         execfile(filename, execDict, obj.__dict__)
     except:
-        pass
+        if eg.debugLevel:
+            raise
     return obj
 

@@ -1,13 +1,35 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Webserver"
-    author = "Bitmonster"
-    version = "1.0.0"
+eg.RegisterPlugin(
+    name = "Webserver",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
     description = (
         "Implements a small webserver, that you can use to generate events "
         "through HTML-pages."
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeT"
         "AAAACXBIWXMAAA3XAAAN1wFCKJt4AAAAB3RJTUUH1gEECzsZ7j1DbAAAAu1JREFUOMul"
@@ -26,7 +48,8 @@ class PluginInfo(eg.PluginInfo):
         "HQ3gdQwrEZxs39j6fKdSqbSU+5/Y++uHsieateuHg9VYPCpTqSSp6QSJmIqhm+z9VnJu"
         "V6o9Jv2beq++WywWf3IcZ/hgmNKh9JnVk4+d31CCyRXDljEAx9T6zrC+dzYrribCcn9z"
         "c/ObTqdzALjiIQmNArF76gcMYAB0gT7g3l/+ByWIP9hU8ktfAAAAAElFTkSuQmCC"
-    )
+    ),
+)
 
 import wx
 import BaseHTTPServer
@@ -56,30 +79,32 @@ class MyHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             p = self.path.split('?', 1)
             self.path = p[0]
             f = self.send_head()
-            if f:
-                self.copyfile(f, self.wfile)
-                f.close()
-                f = None
-                if len(p) > 1:
-                    a = p[1].split('&')
-                    event = a[0]
-                    withoutRelease = False
-                    payload = None
-                    if len(a) > 1:
-                        startPos = 1
-                        if a[1] == "withoutRelease":
-                            withoutRelease = True
-                            startPos = 2
-                        if len(a) > startPos:
-                            payload = []
-                            for i in range(startPos, len(a)):
-                                payload.append(a[i])
-                    if event.strip() == "ButtonReleased":
-                        self.EndLastEvent()
-                    elif withoutRelease:
-                        self.TriggerEnduringEvent(event, payload)
-                    else:
-                        self.TriggerEvent(event, payload)
+            if not f:
+                return
+            self.copyfile(f, self.wfile)
+            f.close()
+            f = None
+            if len(p) < 2:
+                return
+            a = p[1].split('&')
+            event = a[0]
+            withoutRelease = False
+            payload = None
+            if len(a) > 1:
+                startPos = 1
+                if a[1] == "withoutRelease":
+                    withoutRelease = True
+                    startPos = 2
+                if len(a) > startPos:
+                    payload = []
+                    for i in range(startPos, len(a)):
+                        payload.append(a[i])
+            if event.strip() == "ButtonReleased":
+                self.EndLastEvent()
+            elif withoutRelease:
+                self.TriggerEnduringEvent(event, payload)
+            else:
+                self.TriggerEvent(event, payload)
         except Exception, ex:
             eg.PrintError("Webserver socket error", self.path)
             eg.PrintError(Exception, ex)
@@ -137,9 +162,9 @@ class Webserver(eg.PluginClass):
     canMultiLoad = True
 
     class text:
-        port = "Use port:"
-        documentRoot = "Use document root:"
-        eventPrefix = "Use event prefix:"
+        port = "Port:"
+        documentRoot = "Document root:"
+        eventPrefix = "Event prefix:"
     
     def __init__(self):
         self.running = False

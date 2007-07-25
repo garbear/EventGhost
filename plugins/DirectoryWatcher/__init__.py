@@ -22,14 +22,17 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Directory Watcher"
-    author = "Bitmonster"
-    version = "1.0.0"
+eg.RegisterPlugin(
+    name = "Directory Watcher",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    canMultiLoad = True,
     description = (
-        "Generates events if files in a defined directory are created, "
-        "deleted or changed."
-    )
+        "Monitors a directory and generates events if files are created, "
+        "deleted or changed in it."
+    ),
+)
+
 
 import wx
 
@@ -51,7 +54,6 @@ class Text:
 
 class DirectoryWatcher(eg.PluginClass):
     text = Text
-    canMultiLoad = True
     
     def __start__(self, path, includeSubdirs):
         self.stopEvent = win32event.CreateEvent(None, 1, 0, None)

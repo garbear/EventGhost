@@ -1,13 +1,36 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 import types
 import os
 import sys
+import codecs
 
-def Start():
+def Start(args):
     import Init
     global eg
     eg = Init.EventGhost()
-    eg.Init(0)
+    eg.Init(args)
     
     global OpenPlugin
     from PluginTools import OpenPlugin
@@ -133,8 +156,8 @@ class LanguageEditor(wx.Frame):
         
         imageList = wx.ImageList(16, 16)
         for pathName in (
-            "eg//CorePlugins//EventGhost//DisableItem.png", 
-            "eg//CorePlugins//EventGhost//EnableItem.png", 
+            "plugins//EventGhost//icons//DisableItem.png", 
+            "plugins//EventGhost//icons//EnableItem.png", 
             "images//folder.png", 
             "images//root.png", 
             "images//new.png", 
@@ -149,20 +172,17 @@ class LanguageEditor(wx.Frame):
         tree.SetPyData(rootId, ["", None, None])
         
         import CheckUpdate
-        import eg.Dialogs.AboutDialog
-        import eg.Dialogs.AddActionDialog
-        import eg.Dialogs.AddPluginDialog
-        import eg.Dialogs.OptionsDialog
-        import eg.Dialogs.FindDialog
+        eg.AboutDialog
+        eg.AddActionDialog
+        eg.AddPluginDialog
+        eg.OptionsDialog
+        eg.FindDialog
         #import MainFrame
         from ActionThread import CORE_PLUGINS
         
-        for pluginIdent in CORE_PLUGINS:
-            plugin = eg.OpenPlugin(pluginIdent)
-            plugin.info.isStarted = True
-        for plugin in os.listdir("Plugins"):
+        for plugin in os.listdir("plugins"):
             if not plugin.startswith("."):
-                OpenPlugin(plugin)
+                OpenPlugin(plugin, plugin, ())
         
         rightPanel = wx.Panel(splitter)
         disabledColour = rightPanel.GetBackgroundColour()
@@ -172,9 +192,9 @@ class LanguageEditor(wx.Frame):
         langNames = [languageNames[k] for k in langKeys]
             
         languageList = ["en_EN"]
-        for item in os.listdir("Languages"):
+        for item in os.listdir("languages"):
             name, ext = os.path.splitext(item)
-            if ext == ".py" and languageNames.has_key(name):
+            if ext == ".py" and name in languageNames:
                 x = langKeys.index(name)
 #                languageChoiceCtrl.SetString(
 #                    x,
@@ -276,7 +296,7 @@ class LanguageEditor(wx.Frame):
         tree.Unbind(wx.EVT_TREE_SEL_CHANGING)
         tree.DeleteChildren(self.rootId)
         translation = eg.Bunch()
-        languagePath = "Languages\\%s.py" % language
+        languagePath = "languages\\%s.py" % language
         if os.path.exists(languagePath):
             execfile(languagePath, {}, translation.__dict__)
         self.translation = translation
@@ -421,13 +441,18 @@ class LanguageEditor(wx.Frame):
                 elif isSequence:
                     if transValue is UnassignedValue:
                         return ""
-                    Add(INDENT * indent + repr(transValue) + ",\n")
+                    if type(transValue) == type(""):
+                        transValue = transValue.decode("latin-1")
+                    Add(INDENT * indent + repr(unicode(transValue)) + ",\n")
                 elif transValue is not UnassignedValue and transValue != "":
-                    Add(INDENT * indent + key + " = " + repr(transValue) + "\n")
+                    #if type(transValue) == type(""):
+                    #    transValue = transValue.decode("latin-1")
+                    Add(INDENT * indent + key + " = " + repr(unicode(transValue)) + "\n")
                 item, cookie = tree.GetNextChild(id, cookie)
             return "".join(res)
         
-        fd = open("Languages\\%s.py" % self.config.language, "w")
+        fd = codecs.open("Languages\\%s.py" % self.config.language, "w", "UTF-8")
+        fd.write("# -*- coding: UTF-8 -*-\n")
         fd.write(Traverse(tree.GetRootItem()))
         fd.close()
         self.isDirty = False
@@ -447,14 +472,23 @@ class LanguageEditor(wx.Frame):
             if key.startswith("__"):
                 continue
             if key == "name":
-                value = node.__class__.__dict__[key]
+                try:
+                    value = node.__class__.__dict__[key]
+                except:
+                    print node.__dict__
+                    print evalPath
+                    print "class has no:", key
+                    continue
+                    raise
                 firstItems.append((key, value))
             elif key == "description":
                 try:
                     value = node.__class__.__dict__[key]
                 except:
                     print node.__dict__
+                    print evalPath
                     print "class has no:", key
+                    continue
                     raise
                 firstItems.append((key, value))
             elif type(getattr(node, key)) in (types.ClassType, types.InstanceType):
@@ -490,7 +524,7 @@ class LanguageEditor(wx.Frame):
                     try:
                         transValue = eval(tmp, self.translationDict)
                         icon = 1
-                    except (AttributeError, NameError):
+                    except (AttributeError, NameError, IndexError):
                         transValue = UnassignedValue
                         icon = 0
                     tmpId = tree.AppendItem(newId, "[%i]" % i, icon)

@@ -257,7 +257,7 @@ class USB_UIRT:
         )
 
 
-    def SetConfig(self, ledRX, ledTX, legacyRX):
+    def SetConfig(self, ledRX, ledTX, legacyRX, repeatStopCodes=False):
         value = 0
         if ledRX:
             value |= UUIRTDRV_CFG_LEDRX
@@ -265,6 +265,8 @@ class USB_UIRT:
             value |= UUIRTDRV_CFG_LEDTX
         if legacyRX:
             value |= UUIRTDRV_CFG_LEGACYRX
+        if repeatStopCodes:
+            value |= 16
         if not self.dll.UUIRTSetUUIRTConfig(self.hDrvHandle, UINT32(value)):
             raise UUIRTError("Error calling UUIRTSetUUIRTConfig")
         
@@ -364,7 +366,9 @@ class USB_UIRT:
             else:
                 codeFormat = UUIRTDRV_IRFMT_LEARN_FORCESTRUC
         else:
-            codeFormat = UUIRTDRV_IRFMT_UUIRT
+            repeatCount = 0
+            codeFormat = UUIRTDRV_IRFMT_PRONTO
+            code = ""
         if not self.dll.UUIRTTransmitIR(
             self.hDrvHandle,    # hHandle
             c_char_p(code),     # IRCode

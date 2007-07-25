@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 import eg
 import re
@@ -32,7 +54,9 @@ class HeaderBox(wx.PyWindow):
         self.obj = obj
         self.parent = parent
         wx.PyWindow.__init__(self, parent, -1)
-        self.SetBackgroundColour((255,255,255))
+        self.SetBackgroundColour(
+            wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
+        )
         
         nameBox = wx.StaticText(self, -1, obj.name)
         font = wx.Font(8, wx.SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD )
@@ -56,7 +80,13 @@ class HeaderBox(wx.PyWindow):
             )
             helpLink.Bind(hl.EVT_HYPERLINK_LEFT, self.OnLink)
             helpLink.AutoBrowse(False)
-            topRightSizer.Add(helpLink, 0, wx.EXPAND|wx.RIGHT, 4)
+            topRightSizer.Add(helpLink, 0, wx.EXPAND|wx.RIGHT, 2)
+            
+            helpBitmap = wx.StaticBitmap(self)
+            helpBitmap.SetBitmap(wx.Bitmap("images/help.png"))
+            topRightSizer.Add(helpBitmap, 0, wx.RIGHT, 4)
+            helpBitmap.SetCursor(wx.StockCursor(wx.CURSOR_HAND))
+            helpBitmap.Bind(wx.EVT_LEFT_UP, self.OnLink)
         
         rightSizer = wx.BoxSizer(wx.VERTICAL)
         rightSizer.Add((4, 4))
@@ -70,9 +100,13 @@ class HeaderBox(wx.PyWindow):
         mainSizer.Add((4, 4))
         mainSizer.Add(rightSizer, 1, wx.EXPAND)
         
-        self.SetSizerAndFit(mainSizer)
-        #mainSizer.Layout()
-        #self.Layout()
+        # odd sequence to setup the window, but all other ways seem
+        # to wrap the text wrong
+        self.SetSizer(mainSizer)
+        self.SetAutoLayout(True)
+        mainSizer.Fit(self)
+        mainSizer.Layout()
+        self.Layout()
         self.Bind(wx.EVT_SIZE, self.OnSize)
         
         
@@ -92,9 +126,20 @@ class HeaderBox(wx.PyWindow):
     def AcceptsFocus(self):
         return False
     
+    
+    
+def ConfigurationDialog(executable, *args, **kwargs):    
+    if executable == eg.currentConfigureItem.executable and eg.currentConfigureItem.openConfigDialog:
+        dialog = eg.currentConfigureItem.openConfigDialog
+        dialog.Freeze()
+        dialog.Clear()
+        return dialog
+    else:
+        return ConfigurationDialogBase(executable, *args, **kwargs)
         
         
-class ConfigurationDialog(eg.Dialog):
+        
+class ConfigurationDialogBase(eg.Dialog):
     """
     A configuration dialog for all plug-ins and actions.
     """
@@ -116,11 +161,11 @@ class ConfigurationDialog(eg.Dialog):
         self.configureItem = eg.currentConfigureItem
         eg.currentConfigureItem.openConfigDialog = self
         
-        dialogStyle = wx.DEFAULT_DIALOG_STYLE
+        dialogStyle = wx.CAPTION|wx.CLOSE_BOX|wx.SYSTEM_MENU
         if resizeable:
             dialogStyle |= wx.RESIZE_BORDER
-        eg.Dialog.__init__(self, None, -1, title, style=dialogStyle)
-        
+        eg.Dialog.__init__(self, eg.document.frame, -1, title, style=dialogStyle)
+        self.Freeze()
 #        icon = obj.info.GetWxIcon()
 #        self.icon = icon
 #        if icon:
@@ -128,7 +173,7 @@ class ConfigurationDialog(eg.Dialog):
         
         self.buttonRow = eg.ButtonRow(
             self, 
-            (wx.ID_OK, wx.ID_CANCEL)
+            (wx.ID_OK, wx.ID_CANCEL, wx.ID_APPLY)
         )
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         paramSizer = wx.BoxSizer(wx.VERTICAL)
@@ -139,13 +184,26 @@ class ConfigurationDialog(eg.Dialog):
         mainSizer.Add(paramSizer, 1, flags|wx.ALIGN_CENTER_VERTICAL, 15)
         self.mainSizer = mainSizer
         self.sizer = paramSizer
+        
+        def ShowHelp(event):
+            self.configureItem.ShowHelp()
+        wx.EVT_MENU(self, wx.ID_HELP, ShowHelp)
+        
+        self.SetAcceleratorTable(
+            wx.AcceleratorTable(
+                [
+                    (wx.ACCEL_NORMAL, wx.WXK_F1, wx.ID_HELP),
+                ]
+            )
+        )        
+        
 
-
-    def AffirmedShowModal(self):
+    def FinishSetup(self):
         if not self.__postInited:
             line = wx.StaticLine(self)
             self.sizer.Add((0,0))
             self.mainSizer.Add(line, 0, wx.EXPAND|wx.ALIGN_CENTER)
+            self.buttonRow.applyButton.MoveAfterInTabOrder(line)
             self.buttonRow.cancelButton.MoveAfterInTabOrder(line)
             self.buttonRow.okButton.MoveAfterInTabOrder(line)
             
@@ -158,16 +216,62 @@ class ConfigurationDialog(eg.Dialog):
                 flag = wx.EXPAND|wx.RIGHT
                 border = 10
             self.mainSizer.Add(self.buttonRow.sizer, 0, flag, border)
-            self.SetSizerAndFit(self.mainSizer)
-            self.SetMinSize(self.GetSize())
-            #self.Layout()
-            self.__postInited = True
-        self.Centre()
+
+        self.SetSizerAndFit(self.mainSizer)
+        self.SetMinSize(self.GetSize())
+        self.Layout()
+        #self.Refresh()
+        self.Thaw()
+        if not self.__postInited:
+            self.Centre()
+        self.__postInited = True
+        
+        
+    def Clear(self):
+        #self.__postInited = False
+        self.sizer.Clear(deleteWindows=True)
+            
+        
+    def SetCallback(self, callback, *args, **kwargs):
+        def OkCallWarpper(event):
+            callback(wx.ID_OK, *args, **kwargs)
+        self.buttonRow.okButton.Bind(wx.EVT_BUTTON, OkCallWarpper)
+        def CancelCallWarpper(event):
+            callback(wx.ID_CANCEL, *args, **kwargs)
+        self.buttonRow.cancelButton.Bind(wx.EVT_BUTTON, CancelCallWarpper)
+        def ApplyCallWarpper(event):
+            callback(wx.ID_APPLY, *args, **kwargs)
+        self.buttonRow.applyButton.Bind(wx.EVT_BUTTON, ApplyCallWarpper)
+        self.Bind(wx.EVT_CLOSE, CancelCallWarpper)
+        
+    
+    def AffirmedShowModal(self):
+        self.FinishSetup()
         if self.ShowModal() == wx.ID_OK:
             return True
         return False
 
 
+    def AffirmedShowModal(self):
+        gr1 = eg.Greenlet.getcurrent()
+        self.FinishSetup()
+        self.Show()
+        self.Raise()
+        def SwitchWrapper(resultCode):
+            def wrapper(event):
+                gr1.switch(resultCode)
+            return wrapper
+        self.buttonRow.okButton.Bind(wx.EVT_BUTTON, SwitchWrapper(wx.ID_OK))
+        self.buttonRow.cancelButton.Bind(wx.EVT_BUTTON, SwitchWrapper(wx.ID_CANCEL))
+        self.buttonRow.applyButton.Bind(wx.EVT_BUTTON, SwitchWrapper(wx.ID_APPLY))
+        self.Bind(wx.EVT_CLOSE, SwitchWrapper(wx.ID_CANCEL))
+        
+        self.result = gr1.parent.switch()
+        #self.Hide()
+        #self.Destroy()
+        return self.result in (wx.ID_OK, wx.ID_APPLY)
+    
+    
 #    def OnHelp(self, event):
 #        self.configureItem.ShowHelp()
 #

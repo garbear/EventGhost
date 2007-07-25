@@ -1,10 +1,34 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import math
 import locale
 import wx
 from wx.lib import masked
 
 
+encoding = locale.getdefaultlocale()[1]
 localedict = locale.localeconv()
+
 
 class SpinNumCtrl(wx.Window):
     _default_args = {
@@ -13,8 +37,8 @@ class SpinNumCtrl(wx.Window):
         "allowNegative": False,
         "min": 0,
         "limited": True,
-        "groupChar": localedict['thousands_sep'],
-        "decimalChar": localedict['decimal_point'],
+        "groupChar": localedict['thousands_sep'].decode(encoding),
+        "decimalChar": localedict['decimal_point'].decode(encoding),
     }
     
     def __init__(
@@ -53,6 +77,12 @@ class SpinNumCtrl(wx.Window):
             name, 
             **new_args
         )
+        self.numCtrl = numCtrl
+        numCtrl.SetCtrlParameters(        
+            validBackgroundColour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW),
+            emptyBackgroundColour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW),
+            foregroundColour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT),
+        )
         numCtrl.SetLimited(True)
         w, h = numCtrl.GetSize()
         spinbutton = wx.SpinButton(
@@ -77,8 +107,8 @@ class SpinNumCtrl(wx.Window):
         self.SetMinSize(self.GetSize())
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_SET_FOCUS, self.OnSetFocus)
-        self.numCtrl = numCtrl
-
+        wx.CallAfter(numCtrl.SetSelection, -1, -1)
+        
 
     def OnSize(self, event):
         if self.GetAutoLayout():
@@ -87,6 +117,7 @@ class SpinNumCtrl(wx.Window):
 
     def OnSetFocus(self, event):
         self.numCtrl.SetFocus()
+        self.numCtrl.SetSelection(-1, -1)
         
         
     def OnSpinUp(self, event):
@@ -134,33 +165,3 @@ class SpinNumCtrl(wx.Window):
 
 
 
-class SpinIntCtrl(SpinNumCtrl):
-    
-    def __init__(
-        self, 
-        parent, 
-        id=-1, 
-        value=0, 
-        min=0, 
-        max=None, 
-        size=(-1,-1), 
-        style=0
-    ):
-        allowNegative = bool(min < 0)
-        if max is None:
-            integerWidth = 5
-        else:
-            integerWidth = int(math.ceil(math.log10(max + 1)))
-        SpinNumCtrl.__init__(
-            self, 
-            parent, 
-            id, 
-            value, 
-            min=min, 
-            max=max,
-            size=size, 
-            allowNegative=allowNegative, 
-            groupDigits = False,
-            fractionWidth=0,
-            integerWidth=integerWidth
-        )

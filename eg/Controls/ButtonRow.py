@@ -1,6 +1,28 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 import eg
-from SizeGrip import SizeGrip
+
 
 class ButtonRow:
     
@@ -11,7 +33,7 @@ class ButtonRow:
         default_button = None
         text = eg.text.General
         for ctrl in buttonIds:
-            if ctrl not in (wx.ID_OK, wx.ID_CANCEL, wx.ID_HELP):
+            if ctrl not in (wx.ID_OK, wx.ID_CANCEL, wx.ID_APPLY, wx.ID_HELP):
                 stdbtnsizer.Add(ctrl)
                 
         if wx.ID_OK in buttonIds:
@@ -29,6 +51,14 @@ class ButtonRow:
                 default_button = cancelButton
             self.cancelButton = cancelButton
         
+        if wx.ID_APPLY in buttonIds:
+            applyButton = wx.Button(parent, wx.ID_APPLY, text.apply)
+            applyButton.Bind(wx.EVT_BUTTON, self.OnApply)
+            stdbtnsizer.AddButton(applyButton)
+            if not default_button:
+                default_button = applyButton
+            self.applyButton = applyButton
+        
         if wx.ID_HELP in buttonIds:
             helpButton = wx.Button(parent, wx.ID_HELP, text.help)
             helpButton.Bind(wx.EVT_BUTTON, self.OnHelp)
@@ -42,7 +72,7 @@ class ButtonRow:
         
         self.sizer = sizer = wx.BoxSizer(wx.HORIZONTAL)
         if parent.GetWindowStyleFlag() & wx.RESIZE_BORDER:
-            self.sizeGrip = SizeGrip(parent)
+            self.sizeGrip = eg.SizeGrip(parent)
             sizer.Add(self.sizeGrip.GetSize(), 1)
             sizer.Add(stdbtnsizer, 0, wx.TOP|wx.BOTTOM, 6)
             sizer.Add(self.sizeGrip, 0, wx.ALIGN_BOTTOM|wx.ALIGN_RIGHT)
@@ -83,6 +113,13 @@ class ButtonRow:
     def OnCancel(self, event):
         if hasattr(self.parent, "OnCancel"):
             self.parent.OnCancel(event)
+        else:
+            event.Skip()
+            
+            
+    def OnApply(self, event):
+        if hasattr(self.parent, "OnApply"):
+            self.parent.OnApply(event)
         else:
             event.Skip()
             

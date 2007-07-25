@@ -44,12 +44,13 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Yamaha RX-V1000 Serial"
-    author = "Mark Clarkson"
-    version = "0.0.1"
-    kind = "external"
-    description = "Plugin to control Yamaha RX-V1000 receiver using RS232"
+eg.RegisterPlugin(
+    name = "Yamaha RX-V1000 Serial",
+    author = "Mark Clarkson",
+    version = "0.1." + "$LastChangedRevision$".split()[1],
+    kind = "external",
+    description = "Control Yamaha RX-V1000 receivers using RS232.",
+)
 
 import wx
 import thread
@@ -485,7 +486,5 @@ class YamahaSerial(eg.PluginClass):
         dialog.sizer.Add(mySizer)
         
         if dialog.AffirmedShowModal():
-            return (
-                ports[portCtrl.GetSelection()],
-            )
+            return (ports[portCtrl.GetSelection()], )
                     

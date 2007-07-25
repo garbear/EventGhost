@@ -1,9 +1,5 @@
-#
-# plugins/NetworkSender/__init__.py
-#
-# Copyright (C) 2005 Lars-Peter Voss
-#
 # This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 # 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,13 +22,13 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Network Event Sender"
-    version = "1.0.0"
-    author = "Bitmonster"
+eg.RegisterPlugin(
+    name = "Network Event Sender",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    author = "Bitmonster",
     description = (
         "Sends events to an Network Event Receiver plugin through TCP/IP."
-    )
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QAAAAAAAD5Q7t/"
         "AAAACXBIWXMAAAsSAAALEgHS3X78AAAAB3RJTUUH1gIQFgQOuRVmrAAAAVRJREFUOMud"
@@ -43,7 +39,8 @@ class PluginInfo(eg.PluginInfo):
         "geKxqqpCYnpSYL2/feIbleuTrZErjCwxEpGpNzp0ew7tjshaKOb8BsgIBnePdXAlz05g"
         "XV1ZEyplWaZQzGUVL8lx+qhv7yM78NRqtYJ30KhVucynAq8AoJ+fBhqUjLKe/uXPZzI7"
         "e/tBBumN9U1s2/at9FiBQANM0+S/UsL4/qIvHUp+5VOP+PAAAAAASUVORK5CYII="
-    )
+    ),
+)
 
 
 import wx
@@ -55,7 +52,7 @@ import md5
 
 class Text:
     host = "Host:"
-    port = "Port:"
+    port = "TCP/IP Port:"
     password = "Password:"
     class Map:
         parameterDescription = "Event name to send:"
@@ -118,7 +115,7 @@ class NetworkSender(eg.PluginClass):
             # APOP protocol. The server gives you a cookie you add :<password>
             # calculate the md5 digest out of this and send it back
             # if the digests match you are in.
-            # We do this so that noone can listen in on our password exchange
+            # We do this so that no one can listen in on our password exchange
             # much safer then plain text.
 
             cookie = sock.recv(128)		
@@ -150,10 +147,10 @@ class NetworkSender(eg.PluginClass):
             # now just pipe those commands to the server
             if (payload is not None) and (len(payload) > 0):
                 for pld in payload:
-                    sock.sendall("payload " + pld + "\n")
+                    sock.sendall("payload " + pld.encode(eg.systemEncoding) + "\n")
 
             sock.sendall("payload withoutRelease\n")
-            sock.sendall(eventString + "\n")
+            sock.sendall(eventString.encode(eg.systemEncoding) + "\n")
 
             return sock
         

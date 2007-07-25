@@ -1,7 +1,27 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import wx
 import eg
-from eg.Controls.TreeItemBrowseCtrl import TreeItemBrowseCtrl
-from eg.Controls.SizeGrip import SizeGrip
 
 
 class TreeItemBrowseDialog(eg.Dialog):
@@ -18,7 +38,7 @@ class TreeItemBrowseDialog(eg.Dialog):
         def filterFunc(obj):
             return isinstance(obj, filterClasses)
         
-        tree = TreeItemBrowseCtrl(self, filterFunc, selectItem=searchItem)
+        tree = eg.TreeItemBrowseCtrl(self, filterFunc, selectItem=searchItem)
         tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelectionChanged)
         self.treeCtrl = tree
         
@@ -37,7 +57,7 @@ class TreeItemBrowseDialog(eg.Dialog):
         btnrowSizer.Add((5,5), 1)
         btnrowSizer.Add(stdbtnsizer, 0, wx.TOP|wx.BOTTOM, 6)
         btnrowSizer.Add((2,2), 0)
-        btnrowSizer.Add(SizeGrip(self), 0, wx.ALIGN_BOTTOM|wx.ALIGN_RIGHT)
+        btnrowSizer.Add(eg.SizeGrip(self), 0, wx.ALIGN_BOTTOM|wx.ALIGN_RIGHT)
 
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         mainSizer.Add(staticText, 0, wx.EXPAND|wx.ALL, 5)

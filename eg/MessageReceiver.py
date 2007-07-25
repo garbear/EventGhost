@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 from ThreadWorker import ThreadWorker
 
@@ -18,8 +40,8 @@ class MessageReceiver(ThreadWorker):
         ThreadWorker.__init__(self)
         
         
-    def Init2(self):
-        eg.whoami()
+    @eg.LogIt
+    def Setup(self):
         wc = win32gui.WNDCLASS()
         wc.hInstance = win32api.GetModuleHandle(None)
         wc.lpszClassName = "HiddenMessageReceiver"
@@ -30,7 +52,7 @@ class MessageReceiver(ThreadWorker):
         classAtom = win32gui.RegisterClass(wc)
         self.hwnd = win32gui.CreateWindow(
             classAtom,
-            "HiddenMessageReceiver",
+            "EventGhost Message Receiver",
             win32con.WS_OVERLAPPED|win32con.WS_SYSMENU,
             0, 
             0,
@@ -62,6 +84,9 @@ class MessageReceiver(ThreadWorker):
             
     
     def MyWndProc(self, hwnd, mesg, wParam, lParam):
+        if mesg == win32con.WM_SIZE:
+            print "sized"
+            return 0
         for handler in self.multipleMessageProcs[mesg]:
             res = handler(hwnd, mesg, wParam, lParam)
             if res == 0:
@@ -69,8 +94,8 @@ class MessageReceiver(ThreadWorker):
         return 1
     
         
-    def close(self):
-        eg.whoami()
+    @eg.LogIt
+    def Close(self):
         self.hwnd = None
-        self.stop()
+        self.Stop()
         

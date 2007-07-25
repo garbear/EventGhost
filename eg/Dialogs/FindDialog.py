@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 import wx
 import string
@@ -20,7 +42,7 @@ Text = eg.GetTranslation(Text)
 
 class FindDialog(eg.Dialog):
     
-    def __init__(self, parent):
+    def __init__(self, parent, document):
         eg.Dialog.__init__(
             self, 
             parent, 
@@ -28,7 +50,8 @@ class FindDialog(eg.Dialog):
             title = Text.title,
             style = wx.DEFAULT_DIALOG_STYLE
         )
-        choices = [""]
+        self.document = document
+        self.choices = [""]
         textCtrl = wx.TextCtrl(self)
         wholeWordsOnlyCb = wx.CheckBox(self, -1, Text.wholeWordsOnly)
         caseSensitiveCb = wx.CheckBox(self, -1, Text.caseSensitive)
@@ -101,7 +124,7 @@ class FindDialog(eg.Dialog):
 
 
     def OnFindButton(self, event=None):
-        tree = eg.treeCtrl
+        tree = self.document.tree
         item = tree.GetPyData(tree.GetSelection())
         startItem = item
         originalSearchValue = self.textCtrl.GetValue()
@@ -137,7 +160,7 @@ class FindDialog(eg.Dialog):
             item = iterFunc(item)
             if startItem is item:
                 dlg = wx.MessageDialog(
-                    eg.mainFrame, 
+                    None, 
                     Text.notFoundMesg % originalSearchValue,
                     eg.APP_NAME,
                     wx.OK | wx.ICON_INFORMATION
@@ -156,7 +179,11 @@ class FindDialog(eg.Dialog):
                 for arg in item.args:
                     if type(arg) in StringTypes:
                         text = convertFunc(arg)
-                        pos = text.find(key)
+                        try:
+                            pos = text.find(key)
+                        except UnicodeDecodeError:
+                            # silently ignore unicode errors for byte strings
+                            pos = -1
                         if pos != -1 and matchFunc(text, pos):
                             item.Select()
                             return

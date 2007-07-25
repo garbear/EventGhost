@@ -3,6 +3,17 @@ import wx
 from threading import Thread, Event
 import time
 
+
+eg.RegisterPlugin(
+    name = "Timer",
+    author = "Bartman",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    description = (
+        "Triggers an event after an adjustable time and optionally repeats it "
+        "after an interval."
+    ),
+)
+
 class Text:
    
     stopped = "Plugin stopped"
@@ -73,7 +84,11 @@ class TimerThread(Thread):
         startTime
     ):
 
-        Thread.__init__(self, name = name)
+        # Thread.__init__(self, name = name)
+        # threading Thread doesn't like unicode strings as name. This seems
+        # to be a bug of the library. We don't need the name anyhow, so we
+        # init it anonymous.
+        Thread.__init__(self)
         if not eventName:
             eventName = name
         self.name = name
@@ -194,12 +209,10 @@ class Timer(eg.PluginClass):
 
 
     def __start__(self):
-        eg.whoami()
         self.started = True
 
 
     def __stop__(self):
-        eg.whoami()
         self.started = False
         #end all running threads
         self.AbortAllTimers()
@@ -665,21 +678,15 @@ class TimerAction(eg.ActionClass):
                     action = i
                     break
             loops = loopCtrl.GetValue()
-           
             showRemainingLoops = showRemaingLoopsCtrl.GetValue()
-           
             eventName = eventNameCtrl.GetValue()
-           
             interval = intervalCtrl.GetValue()
-           
             startTimeType = startTimeTypeCtrl.GetSelection()
-           
             addCounterToName = addCounterToNameCtrl.GetValue()
-
-           
             startTime = startTimeCtrl.GetValue()
-
-            return (timerName,
+    
+            return (
+                timerName,
                 action,
                 loops,
                 interval,
@@ -687,4 +694,5 @@ class TimerAction(eg.ActionClass):
                 addCounterToName,
                 showRemainingLoops,
                 startTimeType,
-                startTime)
+                startTime
+            )

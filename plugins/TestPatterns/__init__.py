@@ -1,9 +1,5 @@
-#
-# plugins/TestPatterns/__init__.py
-#
-# Copyright (C) 2006 Lars-Peter Voss
-#
-# This file is part of EventGhost.
+## This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 # 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,16 +22,17 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Test Patterns"
-    author = "Bitmonster"
-    version = "0.0.1"
-    description = "Plugin to show some test patterns."
+eg.RegisterPlugin(
+    name = "Test Patterns",
+    author = "Bitmonster",
+    version = "0.1." + "$LastChangedRevision$".split()[1],
+    description = "Plugin to show some test patterns.",
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAV0lEQVR42mNkoBAwgogD"
         "Bw78B9H29g5Qwf/I0gz/GVH5SPKMowaMGkA9A4BK/qNogCpgZECXhvCBFoJpBwcHmAEH"
         "YEYC1drDmED1jQwI0MCABQweA8gHAM1iaBEreN/nAAAAAElFTkSuQmCC"
-    )
+    ),
+)
 
 
 import wx

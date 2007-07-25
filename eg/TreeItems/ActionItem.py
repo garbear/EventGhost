@@ -1,18 +1,54 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import types
 import inspect
 from xml.sax.saxutils import quoteattr
+import colorsys
 
 import wx
-import eg
 
-from TreeItem import TreeItem
-from TreeLink import TreeLink
+import eg
+from TreeItems.TreeItem import TreeItem
+from TreeItems.TreeLink import TreeLink
 
 
 gPatches = {
     "Registry.RegistryChange": "System.RegistryChange",
     "Registry.RegistryQuery": "System.RegistryQuery",
 }    
+
+def GetRenamedColor():
+    r, g, b = wx.SystemSettings_GetColour(wx.SYS_COLOUR_WINDOWTEXT).Get()
+    h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)        
+    if v > 0.5:
+        v -= 0.25
+    else:
+        v += 0.25
+    rgb = colorsys.hsv_to_rgb(h, s, v)
+    return tuple([int(round(c * 255.0)) for c in rgb])
+
+
+gRenamedColour = GetRenamedColor()
 
 
 def _compileCall(action, *args):
@@ -27,8 +63,11 @@ class ActionItem(TreeItem):
     executable = None
     args = ()
     needsCompile = False
-    canExecute = True
+    isExecutable = True
+    isConfigurable = True
     openConfigDialog = None
+    shouldSelectOnExecute = False
+    configurationGenerator = None
 
 
     def WriteToXML(self):
@@ -69,8 +108,8 @@ class ActionItem(TreeItem):
         else:
             self.needsCompile = False
         self.SetArgumentString(argString)
-
-
+    
+    
     def GetArgumentString(self):
         return ", ".join([repr(arg) for arg in self.args])
     
@@ -115,18 +154,13 @@ class ActionItem(TreeItem):
         id = self.id
         if id is None:
             return
-        if self.name:
-            tree.SetItemFont(id, tree.italicfont)
-            tree.SetItemTextColour(id, (64,64,64))
-        else:
-            tree.SetItemFont(id, tree.normalfont)
-            tree.SetItemTextColour(id, None)
+        self.SetAttributes(tree, id)
         tree.SetItemText(id, self.GetLabel())
             
             
     def SetAttributes(self, tree, id):
         if self.name:
-            tree.SetItemTextColour(id, (64,64,64))
+            tree.SetItemTextColour(id, gRenamedColour)
             tree.SetItemFont(id, tree.italicfont)
         else:
             tree.SetItemTextColour(id, None)
@@ -144,78 +178,27 @@ class ActionItem(TreeItem):
             try:
                 name = executable.GetLabel(*self.args)
             except:
-                name = executable.plugin.info.label + ": " + executable.name
+                name = executable.name
+            pluginInfo = executable.plugin.info
+            if pluginInfo.kind != "core":
+                name = pluginInfo.label + ": " + name
         return name
 
 
-    def NeedsConfiguration(self):
+    def NeedsStartupConfiguration(self):
+        """
+        Returns True if the item wants to be configured after creation.
+        """
+        # if the Configure method of the executable is overriden, we assume
+        # the items wants to configured after creation
         im_func = self.executable.Configure.im_func
-        if im_func != eg.ActionClass.Configure.im_func:
-            return True
-        return False
+        return im_func != eg.ActionClass.Configure.im_func
     
     
     def IsConfigurable(self):
         return True
     
     
-    def Configure(self):
-        return self.ConfigureHandler().Do(self)
-    
-    
-    def DoConfigure(self):
-        eg.whoami()
-        executable = self.executable
-        if executable is None:
-            return None
-        eg.SetAttr("currentConfigureItem", self)
-        
-        if executable.Configure.func_code.co_flags & 0x20:
-            gen = executable.Configure(*self.args)
-            dialog = gen.next()
-            res = dialog.AffirmedShowModal()
-            if res:
-                result = gen.next()
-            else:
-                result = None
-        else:
-            result = executable.Configure(*self.args)
-        if self.openConfigDialog is not None:
-            self.openConfigDialog.Destroy()
-            self.openConfigDialog = None
-        if result is None:
-            return False
-        self.SetParams(*result)
-        self.Refresh()
-        return True
-        
-            
-    class ConfigureHandler:
-        
-        def Do(self, item):
-            self.name = eg.text.MainFrame.Menu.Edit.replace("&", "")
-            self.oldArgs = item.GetArgumentString()
-            if item.DoConfigure() is False:
-                return
-            newArgs = item.GetArgumentString()
-            if self.oldArgs != newArgs:
-                self.positionData = item.GetPositionData()
-                item.document.AppendUndoHandler(self)
-        
-        
-        def Undo(self, document):
-            item = pself.positionData.GetItem()
-            args = item.GetArgumentString()
-            TreeLink.StartUndo()
-            item.SetArgumentString(self.oldArgs)
-            TreeLink.StopUndo()
-            self.oldArgs = args
-            item.Refresh()
-            item.Select()
-
-        Redo = Undo
-        
-
     def ShowHelp(self):
         action = self.executable
         eg.HTMLDialog(
@@ -232,8 +215,8 @@ class ActionItem(TreeItem):
         if eg.config.logActions:
             self.DoPrint(self.GetLabel())
         if self.shouldSelectOnExecute:
-            self.Select()
-            #wx.CallAfter(self.Select)
+            #self.Select()
+            wx.CallAfter(self.Select)
         eg.currentItem = self
         action = self.executable
         if not action:
@@ -252,16 +235,19 @@ class ActionItem(TreeItem):
             eg.PrintError(e.message)
         except:
             wx.CallAfter(self.Select)
-            label = self.executable.GetLabel(*self.args)
+            label = self.GetLabel()
             eg.PrintTraceback(eg.text.Error.InAction % label, 1)
+        finally:
+            pass
 
 
     def DropTest(self, cls):
-        if cls == EventItem and self.parent != self.document.autostartMacro:
+        if cls == eg.EventItem and self.parent != self.document.autostartMacro:
             return 2 # 2 = item would move before
-        if cls == ActionItem:
+        if cls == eg.ActionItem:
             return 4 # 4 = item can be inserted before or after
-        if cls == PluginItem and self.parent == self.document.autostartMacro:
+        if cls == eg.PluginItem and self.parent == self.document.autostartMacro:
             return 4 # 4 = item can be inserted before or after
         return None
+
 

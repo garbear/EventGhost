@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 class Text:
     class General:
         configTree = "Configuration Tree"
@@ -18,6 +40,7 @@ class Text:
             "Are you sure you want to delete the selection?")
         ok = "OK"
         cancel = "Cancel"
+        apply = "Apply"
         help = "&Help"
         choose = "Choose"
         browse = "Browse..."
@@ -27,7 +50,7 @@ class Text:
         unnamedMacro = "<unnamed macro>"
         unnamedEvent = "<unnamed event>"
         unnamedFile = "<unnamed file>"
-        moreHelp = "More help"
+        moreHelp = "More info"
         noOptionsAction = "This action has no options to configure."
         noOptionsPlugin = "This plugin has no options to configure."
 
@@ -37,13 +60,16 @@ class Text:
         InScript = 'Error in Script: "%s"'
         pluginNotActivated = 'Plugin "%s" is not activated'
         pluginStartError = "Error starting plugin: %s"
+        pluginLoadError = "Error while loading plugin-file %s."
+        pluginInfoPyError = "Error while reading __info__.py for plugin %s"
+        pluginNotFound = "Can't find plugin: %s"
         
     class Plugin:
         pass
 
     
     class MainFrame:
-        onlyLogAssigned = "Log only assigned and activated events"
+        onlyLogAssigned = "&Log only assigned and activated events"
         
         class TaskBarMenu:
             Show = "Show EventGhost"
@@ -70,7 +96,6 @@ class Text:
             Copy = "&Copy"
             Paste = "&Paste"
             Delete = "&Delete"
-            ClearAll = "Clear All"
             SelectAll = "Select &All"
             AddPlugin = "Add Plugin"
             NewFolder = "Add Folder"
@@ -90,17 +115,19 @@ class Text:
             ExpandAll = "&Expand All"
             ExpandOnEvents = "Autom. highlight on event"
             ExpandTillMacro = "Autom. expand only till macro"
+            LogMacros = "Log Macros"
             LogActions = "Log Actions"
             LogTime = "Log Times"
+            ClearLog = "Clear Log"
             
             ConfigurationMenu = "&Configuration"
             
             HelpMenu = "&Help"
             About = "&About EventGhost..."
-            WebHomepage = "EventGhost Homepage"
-            WebForum = "Support Forum"
+            WebHomepage = "Home Page"
+            WebForum = "Support Forums"
             WebWiki = "Wiki"
-            CheckUpdate = "Check for newest version..."
+            CheckUpdate = "Check for updates now..."
             Reset = "Reset"
             
         class SaveChanges:

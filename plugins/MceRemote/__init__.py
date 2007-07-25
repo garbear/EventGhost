@@ -26,20 +26,20 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Microsoft MCE Remote"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "remote"
+eg.RegisterPlugin(
+    name = "Microsoft MCE Remote",
+    author = "Bitmonster",
+    version = "1.1." + "$LastChangedRevision$".split()[1],
+    kind = "remote",
     description = (
         'Plugin for the Microsoft MCE remote.'
         '\n\n<p>'
         'Will only work, if you have installed the replacement driver for '
         'the MCE remote. You find detailed installation instructions here:'
-        '<br><a href="http://www.byremote.com.au/Hip/mce_remote_faq.htm">'
-        'MCE Remote Replacement Driver FAQ'
-        '</a><p><center><img src="MCEv2.png"/></center>'
-    )
+        '<br><a href="http://www.eventghost.org/wiki/MCE_Remote_FAQ">'
+        'MCE Remote FAQ'
+        '</a><p><center><img src="MCEv2.jpg"/></center>'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACfklEQVR42q2TS2gTQRyH"
         "f5N9NNlts20abYyxVirWShGLUh8XoSpUUBEVUU+5CXoQr+LNm14UtRCpRcGLHnqoiooN"
@@ -55,21 +55,17 @@ class PluginInfo(eg.PluginInfo):
         "Q/RR6jKo1zmgOrLYtAIzphSEZ2cQ8gGTio0E5SGFa6BrBiJSKxqm97mAWE83VUJjSEzG"
         "nXT5v34ugkqKDkPW4OEZCCIH4iEg1IPOttPQ0quXVe6910vh6EuX/F5U1hmWZV/a+LP0"
         "EBbRaJSs3Gf61/YbN1kg0OJlna4AAAAASUVORK5CYII="
-    )
+    ),
+)
 
 
-import locale
 import os
 from threading import Timer
-import threading
-import time
-import win32event
 import win32api
 import win32gui
 import win32con
-
 import wx
-
+from msvcrt import get_osfhandle
 from ctypes import *
 
 #BOOL WINAPI MceIrRegisterEvents(HWND hWnd)
@@ -135,7 +131,7 @@ from ctypes import *
 
 
 
-key_map = {
+KEY_MAP = {
     0x7b9a: "TV_Power", 0x7ba1: "Blue", 0x7ba2: "Yellow", 0x7ba3: "Green",
     0x7ba4: "Red", 0x7ba5: "Teletext", 0x7baf: "Radio", 0x7bb1: "Print",
     0x7bb5: "Videos", 0x7bb6: "Pictures", 0x7bb7: "Recorded_TV",
@@ -153,92 +149,196 @@ key_map = {
 }
 
 
-plugin_dir = os.path.abspath(os.path.split(__file__)[0])
-dll_path = os.path.join(plugin_dir, "MceIr.dll")
+pluginDir = os.path.abspath(os.path.split(__file__)[0])
+dllPath = os.path.join(pluginDir, "MceIr.dll")
 
 
+class MceMessageReceiver(eg.ThreadWorker):
+    """
+    A thread with a hidden window to receive win32 messages from the driver
+    """
+    def __init__(self, plugin, waitTime):
+        self.plugin = plugin
+        self.waitTime = waitTime
+        eg.ThreadWorker.__init__(self)
+        
+        
+    @eg.LogIt
+    def Setup(self):
+        """
+        This will be called inside the thread at the beginning.
+        """
+        self.timer = Timer(0, self.OnTimeOut)
+        self.lastEvent = eg.EventGhostEvent()
+        
+        wc = win32gui.WNDCLASS()
+        wc.hInstance = win32api.GetModuleHandle(None)
+        wc.lpszClassName = "HiddenMceMessageReceiver"
+        wc.style = win32con.CS_VREDRAW|win32con.CS_HREDRAW;
+        wc.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
+        wc.hbrBackground = win32con.COLOR_WINDOW
+        wc.lpfnWndProc = self.MyWndProc
+        classAtom = win32gui.RegisterClass(wc)
+        self.hwnd = win32gui.CreateWindow(
+            classAtom,
+            "MCE Remote Message Receiver",
+            win32con.WS_OVERLAPPED|win32con.WS_SYSMENU,
+            0, 
+            0,
+            win32con.CW_USEDEFAULT, 
+            win32con.CW_USEDEFAULT,
+            0, 
+            0,
+            wc.hInstance, 
+            None
+        )
+        self.wc = wc
+        self.classAtom = classAtom
+        self.hinst = wc.hInstance
+        
+        self.dll = WinDLL(dllPath)
+        self.dll.MceIrRegisterEvents(self.hwnd)
+        self.dll.MceIrSetRepeatTimes(1,1)
+        
+        # Bind to suspend notifications so we can go into suspend
+        eg.Bind("System.Suspend", self.OnSuspend)
+        eg.Bind("System.Resume", self.OnResume)
+        
+        
+    @eg.LogIt
+    def Finish(self):
+        """
+        This will be called inside the thread when it finishes. It will even
+        be called if the thread exits through an exception.
+        """
+        # Unbind from power notification events
+        eg.Unbind("System.Suspend", self.OnSuspend)
+        eg.Unbind("System.Resume", self.OnResume)
+        
+        self.dll.MceIrUnregisterEvents()
+        win32gui.DestroyWindow(self.hwnd)
+        win32gui.UnregisterClass(self.classAtom, self.hinst)
+        self.Stop()
+        
+        
+    def OnSuspend(self, event):
+        self.dll.MceIrSuspend()
+    
+    
+    def OnResume(self, event):
+        self.dll.MceIrResume()       
+          
+                        
+    @eg.LogIt
+    def MyWndProc(self, hwnd, mesg, wParam, lParam):
+        if mesg == win32con.WM_USER:
+            self.timer.cancel()
+            key = lParam & 0xFFFF
+            repeatCounter = (lParam >> 16)     
+            if key in KEY_MAP:
+                eventString = KEY_MAP[key]
+            else:
+                eventString = "%X" % key
+            if repeatCounter == 0:
+                self.lastEvent = self.plugin.TriggerEnduringEvent(eventString)                
+            self.timer = Timer(self.waitTime, self.OnTimeOut)
+            self.timer.start()
+        return 1
+    
+    
+    def OnTimeOut(self):
+        self.lastEvent.SetShouldEnd()
+        
+        
 
 class MceRemote(eg.PluginClass):
-    name = "Microsoft MCE Remote"
+    
+    class text:
+        buttonTimeout = "Button release timeout (seconds):"
+        buttonTimeoutDescr = (
+            "(If you get unintended double presses of the buttons, "
+            "increase this value.)"
+        )
 
     def __init__(self):
-        self.device = None
-        self.is_enabled = False
-        self.repeat_counter = -1
-        self.timer = Timer(0, self.OnTimeOut)
-        self.lastEventString = ""
-        self.lastEvent = eg.EventGhostEvent()
-        # create a dummy window
-        def Init():
-            self.frame = wx.Frame(None, -1, "MceIr Monitor")
-            # we are only interested in the hwnd
-            self.hwnd = self.frame.GetHandle()
-            # insert our WndProc
-            self.oldWndProc = win32gui.SetWindowLong(self.hwnd, 
-                                            win32con.GWL_WNDPROC, self.MyWndProc)
-            self.dll = WinDLL(dll_path)
-            self.dll.MceIrRegisterEvents(self.hwnd)
-            self.dll.MceIrSetRepeatTimes(1,1)
-        wx.CallAfter(Init)
-        
-    def __start__(self):
-        self.is_enabled = True
+        self.AddAction(TransmitIr)
+            
+            
+    def __start__(self, waitTime=0.15):
+        self.msgThread = MceMessageReceiver(self, waitTime)
+        self.msgThread.Start()
 
 
     def __stop__(self):
-        self.is_enabled = False
+        self.msgThread.Stop()
         
         
-    def __close__(self):
-        if self.frame:
-            self.frame.Close()
-            self.frame = None
+    def Configure(self, waitTime=0.15):
+        dialog = eg.ConfigurationDialog(self)
+        staticText = wx.StaticText(dialog, -1, self.text.buttonTimeout)
+        dialog.sizer.Add(staticText)
+        waitTimeCtrl = eg.SpinNumCtrl(
+            dialog, 
+            -1,
+            waitTime,
+            integerWidth=3
+        )
+        dialog.sizer.Add(waitTimeCtrl)
+        staticText = wx.StaticText(dialog, -1, self.text.buttonTimeoutDescr)
+        dialog.sizer.Add(staticText, 0, wx.TOP, 5)
+        
+        if dialog.AffirmedShowModal():
+            return (waitTimeCtrl.GetValue(), )
+        
+        
+        
+class TransmitIr(eg.ActionClass):
+    name = "Transmit IR"
+    
+    def __call__(self, code=""):
+        tmpFile = os.tmpfile()
+        tmpFile.write(code)
+        tmpFile.seek(0)
+        self.plugin.msgThread.dll.MceIrPlaybackFromFile(
+            get_osfhandle(tmpFile.fileno())
+        )
+        
+        
+    def Configure(self, code=""):
+        dialog = eg.ConfigurationDialog(self)
+        code = ' '.join([("%02X" % ord(c)) for c in code])
             
-            
-    def MyWndProc(self, hwnd, mesg, wParam, lParam):
-        if mesg == win32con.WM_DESTROY:
-        # Restore the old WndProc.  Notice the use of win32api
-        # instead of win32gui here.  This is to avoid an error due to
-        # not passing a callable object.
-            win32api.SetWindowLong(self.hwnd, 
-                                    win32con.GWL_WNDPROC, self.oldWndProc)
-        elif mesg == win32con.WM_USER:
-            key = lParam & 0xFFFF
-            repeat_counter = (lParam >> 16)
-            if not self.is_enabled:
-                return
-            if key_map.has_key(key):
-                eventString = key_map[key]
-            else:
-                eventString = "%X" % key
-            self.timer.cancel()       
-            if self.lastEventString != eventString:
-                if self.lastEventString != "":
-                    self.lastEvent.SetShouldEnd()
-                self.lastEvent = self.TriggerEnduringEvent(eventString)
-                self.lastEventString = eventString
-                self.repeat_counter = repeat_counter
-            else:
-                self.repeat_counter += 1
-                if self.repeat_counter != repeat_counter:
-                    if self.lastEventString != "":
-                        self.lastEvent.SetShouldEnd()
-                    self.lastEvent = self.TriggerEnduringEvent(eventString)
-                    self.lastEventString = eventString
-                    
-            self.timer = Timer(0.15, self.OnTimeOut)
-            self.timer.start()
-        else:
-            return win32gui.CallWindowProc(
-                self.oldWndProc, 
-                hwnd, 
-                mesg,
-                wParam, 
-                lParam
+        editCtrl = wx.TextCtrl(dialog, -1, code, style=wx.TE_MULTILINE)
+        font = editCtrl.GetFont()
+        font.SetFaceName("Courier New")
+        editCtrl.SetFont(font)
+        editCtrl.SetMinSize((-1, 100))
+        
+        def Learn(event):
+            tmpFile = os.tmpfile()
+            self.plugin.msgThread.dll.MceIrRecordToFile(
+                get_osfhandle(tmpFile.fileno()), 
+                10000
             )
+            tmpFile.seek(0)
+            code = tmpFile.read()
+            tmpFile.close()
+            editCtrl.SetValue(' '.join([("%02X" % ord(c)) for c in code]))
+        learnButton = wx.Button(dialog, -1, "Learn IR Code")
+        learnButton.Bind(wx.EVT_BUTTON, Learn)
         
+        def TestTransmission(event):
+            self(editCtrl.GetValue().replace(" ", "").decode("hex_codec"))
+        testButton = wx.Button(dialog, -1, "Test IR Transmission")
+        testButton.Bind(wx.EVT_BUTTON, TestTransmission)
         
-    def OnTimeOut(self):
-        self.lastEvent.SetShouldEnd()
-        self.lastEventString = ""
-        
+        dialog.sizer.Add(editCtrl, 1, wx.EXPAND)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(learnButton)
+        sizer.Add((5,5), 1)
+        sizer.Add(testButton)
+        dialog.sizer.Add(sizer, 0, wx.EXPAND)
+        if dialog.AffirmedShowModal():
+            code = editCtrl.GetValue().replace(" ", "").decode("hex_codec")
+            return (code, )
+    

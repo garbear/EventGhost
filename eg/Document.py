@@ -1,12 +1,32 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
 # $LastChangedDate$
 # $LastChangedRevision$
 # $LastChangedBy$
 
 import eg
+import wx
 from new import classobj
 import os
 import xml.etree.cElementTree as ElementTree
 from tempfile import mkstemp
+from threading import Lock
 
 
 class Observable:
@@ -19,12 +39,12 @@ class Observable:
         self.callbacks[func] = 1
 
     def delCallback(self, func):
-        del self.callback[func]
+        del self.callbacks[func]
 
     def set(self, data):
         self.data = data
         for func in self.callbacks:
-            #eg.notice(func, data)
+            #eg.DebugNote(func, data)
             func(data)
 
     def get(self):
@@ -32,52 +52,70 @@ class Observable:
 
     def unset(self):
         self.data = None
-    
 
-class Document:
+gTreeItemTypes = ["TreeItem", "ContainerItem", "EventItem", "ActionItem",
+    "PluginItem", "FolderItem", "MacroItem", "RootItem", "AutostartItem"]    
+
+
+
+class Document(object):
     
     def __init__(self):
         class ItemMixin:
             document = self
             tree = None
             root = None
+        self.ItemMixin = ItemMixin
         itemNamespace = {}
-        TreeItem = classobj("TreeItem", (eg.TreeItem, ItemMixin), itemNamespace)
-        ContainerItem = classobj("ContainerItem", (eg.ContainerItem, ItemMixin), itemNamespace)
-        EventItem = classobj("EventItem", (eg.EventItem, ItemMixin), itemNamespace)
-        ActionItem = classobj("ActionItem", (eg.ActionItem, ItemMixin), itemNamespace)
-        PluginItem = classobj("PluginItem", (eg.PluginItem, ItemMixin), itemNamespace)
-        FolderItem = classobj("FolderItem", (eg.FolderItem, ItemMixin), itemNamespace)
-        MacroItem = classobj("MacroItem", (eg.MacroItem, ItemMixin), itemNamespace)
-        RootItem = classobj("RootItem", (eg.RootItem, ItemMixin), itemNamespace)
-        AutostartItem = classobj("AutostartItem", (eg.AutostartItem, ItemMixin), itemNamespace)
-        XMLTag2ClassDict = {
-            RootItem.xmlTag: RootItem,
-            FolderItem.xmlTag: FolderItem,
-            MacroItem.xmlTag: MacroItem,
-            EventItem.xmlTag: EventItem,
-            ActionItem.xmlTag: ActionItem,
-            PluginItem.xmlTag: PluginItem,
-            AutostartItem.xmlTag: AutostartItem,
-        }
-        self.__dict__.update(locals())
+        self.XMLTag2ClassDict = {}
+        for itemType in gTreeItemTypes:
+            baseCls = getattr(eg, itemType)
+            itemCls = classobj(itemType, (baseCls, ItemMixin), itemNamespace)
+            setattr(self, itemType, itemCls)
+            self.XMLTag2ClassDict[itemCls.xmlTag] = itemCls
+
         self.stockUndo = []
         self.stockRedo = []
         self.lastUndoId = 0
         self.undoIdOnSave = 0
         self.listeners = {}
         self.undoEvent = eg.EventHook()
-        self.selection = None
+        #self.selection = None
         self.selectionEvent = eg.EventHook()
         self.isDirty = Observable(False)
-        self.filePath = Observable(None)
+        self.filePath = None
         self.TreeLink = eg.TreeLink
+        self.root = None
+        self.firstVisibleItem = None
+        self.frame = None
+        self.tree = None
+        self._selection = None
+        self.reentrantLock = Lock()
         
         
+    def GetSelection(self):
+        return self._selection
+    
+    
+    def SetSelection(self, value):
+        self._selection = value
+        self.selectionEvent.Fire(value)
+        
+    selection = property(fget=GetSelection, fset=SetSelection)
+        
+        
+    def SetFilePath(self, filePath):
+        self.filePath = filePath
+        if self.frame is not None:
+            self.frame.UpdateTitle(filePath)
+    
+    
+    @eg.LogIt
     def SetTree(self, tree):
-        eg.whoami()
         self.tree = tree
         self.ItemMixin.tree = tree
+        if tree and self.root:
+            tree.SetData()
 
 
     def ResetUndoState(self):
@@ -88,50 +126,67 @@ class Document:
         self.undoEvent.Fire(False, False, "", "")
 
 
+    @eg.LogIt
     def New(self):
-        eg.whoami()
         self.ResetUndoState()
-        self.filePath.set(None)
+        self.SetFilePath(None)
         eg.TreeLink.StartLoad()
         node = ElementTree.Element("EventGhost")
         root = self.RootItem(self, node)
         self.root = root
+        self.selection = root
         self.ItemMixin.root = root
-        self.tree.root = root
         node = ElementTree.Element("Autostart")
         self.autostartMacro = self.AutostartItem(root, node)
-        self.root.AddChild(self.autostartMacro)
+        root.childs.append(self.autostartMacro)
+        #eg.actionThread.CallWait(self.root.AddChild, self.autostartMacro)
         self.isInLabelEdit = False
         eg.TreeLink.StopLoad()
         self.isDirty.set(False)
+        if self.tree:
+            wx.CallAfter(self.tree.SetData)
         return root
         
     
+    @eg.LogIt
     def Load(self, filePath):
-        eg.whoami()
+        if self.tree:
+            self.tree.DeleteAllItems()
         if not filePath:
             return self.New()
         self.ResetUndoState()
         
-        self.filePath.set(filePath)
+        self.SetFilePath(filePath)
         eg.TreeLink.StartLoad()
         xmlTree = ElementTree.parse(filePath)
         node = xmlTree.getroot()
-        cls = self.XMLTag2ClassDict[node.tag]
-        root = cls(self, node)
+        root = self.RootItem(self, node)
         self.ItemMixin.root = root
         self.root = root
-        self.tree.root = root
+        self.selection = root
         eg.TreeLink.StopLoad()
         self.isDirty.set(False)
+        self.AfterLoad()
+        if self.tree:
+            wx.CallAfter(self.tree.SetData)
         return root
         
         
-    def Save(self, filePath=None):
+    def AfterLoad(self):
+        tsData = eg.config.treeStateData
+        if tsData.guid == self.root.guid and tsData.time == self.root.time:
+            self.SetExpandState(tsData.expandState)
+            self.selection = self.FindItemWithPath(tsData.selection)
+            self.firstVisibleItem = self.FindItemWithPath(
+                tsData.firstVisibleItem
+            )
+        
+        
+    def WriteFile(self, filePath=None):
         if filePath is not None:
-            self.filePath.set(filePath)
+            self.SetFilePath(filePath)
         else:
-            filePath = self.filePath.get()
+            filePath = self.filePath
         success = False
         fd, tmp_path = mkstemp(".xml", "$", os.path.dirname(filePath))
         os.close(fd)
@@ -153,8 +208,22 @@ class Document:
         return success    
  
 
+    @eg.LogItWithReturn
+    def Close(self):
+        eg.config.hideOnStartup = self.frame is None
+        if self.frame is not None:
+            self.frame.Destroy()
+        eg.config.autoloadFilePath = self.filePath
+        stateData = eg.config.treeStateData
+        stateData.guid = self.root.guid
+        stateData.time = self.root.time
+        stateData.expandState = self.GetExpandState()
+        stateData.selection = self.selection.GetPath()
+        stateData.firstVisibleItem = self.firstVisibleItem.GetPath()
+    
+    
+    @eg.LogIt
     def AppendUndoHandler(self, handler):
-        eg.whoami()
         stockUndo = self.stockUndo
         if len(stockUndo) >= 20:
             del stockUndo[0]
@@ -183,8 +252,8 @@ class Document:
         self.undoEvent.Fire(hasUndo, True, undoName, ": " + handler.name)
         
         
+    @eg.LogIt
     def Redo(self):
-        eg.whoami()
         if len(self.stockRedo) == 0:
             return
         handler = self.stockRedo.pop()
@@ -213,5 +282,142 @@ class Document:
         return item
     
     
+    @eg.LogItWithReturn
+    def ShowFrame(self):
+        if self.reentrantLock.acquire():
+            if self.frame is None:
+                from MainFrame import MainFrame
+                self.frame = MainFrame(self)
+                self.frame.Show()
+            self.frame.Raise()
+            self.reentrantLock.release()
         
+    
+    @eg.LogItWithReturn
+    def HideFrame(self):
+        # NOTICE:
+        # If the program is started through a shortcut with "minimize" option
+        # set, we get an iconize event while ShowFrame() is executing.
+        # Therefor we have to use this CallLater workaround.
+        # TODO:
+        # Find a better way. Preferable detetct the minimize option before
+        # we create the MainFrame.
+        if self.reentrantLock.acquire(False):
+            if self.frame is not None:
+                self.frame.Destroy()
+                self.frame = None
+            self.reentrantLock.release()
+        else:
+            wx.CallLater(100, self.HideFrame)
+        
+    
+    def CheckFileNeedsSave(self):
+        """
+        Checks if the file was changed and if necessary asks the user if he 
+        wants to save it. If the user affirms, calls Save/SaveAs also.
+        
+        returns: wx.ID_OK     if no save was needed
+                 wx.ID_YES    if file was saved
+                 wx.ID_NO     if file was not saved
+                 wx.ID_CANCEL if user canceled posssible save
+        """
+        if not self.isDirty.get():
+            return wx.ID_OK
+        dialog = wx.MessageDialog(
+            None, 
+            eg.text.MainFrame.SaveChanges.mesg, 
+            eg.APP_NAME + ": " + eg.text.MainFrame.SaveChanges.title, 
+            style = wx.YES_DEFAULT
+                |wx.YES_NO
+                |wx.CANCEL
+                |wx.STAY_ON_TOP
+                |wx.ICON_EXCLAMATION
+        )
+        result = dialog.ShowModal()
+        dialog.Destroy()
+        if result == wx.ID_CANCEL:
+            return wx.ID_CANCEL
+        elif result == wx.ID_YES:
+            return self.Save()
+        else:
+            return wx.ID_NO
+            
+
+    def Save(self):
+        if self.filePath is None:
+            return self.SaveAs()
+        self.WriteFile()
+        return wx.ID_YES
+
+
+    def SaveAs(self):
+        fileDialog = wx.FileDialog(
+            self.frame, 
+            message="", 
+            wildcard="*.xml", 
+            style=wx.SAVE|wx.OVERWRITE_PROMPT
+        )
+        result = fileDialog.ShowModal()
+        if result == wx.ID_CANCEL:
+            return result
+        filePath = fileDialog.GetPath()
+        fileDialog.Destroy()
+        self.WriteFile(filePath)
+        return wx.ID_YES
+
+
+    def ExecuteSelected(self):
+        item = self.selection
+        event = eg.EventGhostEvent("OnCmdExecute")
+        eg.actionThread.Call(eg.actionThread.ExecuteTreeItem, item, event)
+        return event
+
+    
+    def FindItemWithPath(self, path):
+        item = self.root
+        try:
+            for pos in path:
+                item = item.childs[pos]
+        except:
+            item = self.root
+        return item
+
+
+    @eg.LogIt
+    def GetExpandState(self):
+        vector = []
+        append = vector.append
+        ContainerItem = eg.ContainerItem
+        def _Traverse(item, i):
+            if isinstance(item, ContainerItem):
+                i += 1
+                if item.isExpanded:
+                    append(i)
+                for child in item.childs:
+                    i = _Traverse(child, i)
+            return i
+        _Traverse(self.root, -1)
+        return vector
+    
+    
+    #@eg.LogIt
+    def SetExpandState(self, vector):
+        if vector is None:
+            return
+        ContainerItem = eg.ContainerItem
+        def _Traverse(item, i):
+            if isinstance(item, ContainerItem):
+                i += 1
+                if len(vector) and vector[0] == i:
+                    item.isExpanded = True  
+                    vector.pop(0)
+                else:
+                    item.isExpanded = False
+                for child in item.childs:
+                    i = _Traverse(child, i)
+            return i
+        
+        _Traverse(self.root, -1)
+        
+                             
         

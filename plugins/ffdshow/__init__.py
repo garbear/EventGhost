@@ -1,11 +1,37 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "ffdshow"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "program"
-    description = "Adds support functions to control the ffdshow DirectShow filter." 
+eg.RegisterPlugin(
+    name = "ffdshow",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "program",
+    description = (
+        'Adds actions to control the '
+        '<a href="http://ffdshow-tryout.sourceforge.net/">'
+        'ffdshow DirectShow filter</a>.'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADMElEQVR42nVSXUiTYRR+"
         "v+/bn6hbapqoTEf400R3YWmQ6E2gIoIk02Y3BZoadVEIGsxCZAkpSZB6YUiDdlFmNAzC"
@@ -25,8 +51,8 @@ class PluginInfo(eg.PluginInfo):
         "5wIUihE3ImaFv4zYDrwbPhcwUQIRDg+BKVoA/ADkgAD4DpwHvlK1wC/AC9yJ5T+PtgC7"
         "AJwC3gCnAQlgp/JjvZ6MkRtjdzTnJyU7Jji2v8P5j3EA/2/gD9tgef0euQO8AAAAAElF"
         "TkSuQmCC"
-    )
-
+    ),
+)
 
 
 
@@ -81,6 +107,7 @@ class PluginInfo(eg.PluginInfo):
 ##define COPY_GET_PRESETLIST		14 //Get the list of presets (array of strings)
 ##define COPY_GET_SOURCEFILE		15 //Get the filename currently played
 
+import sys
 import win32gui
 import win32con
 import ctypes
@@ -104,24 +131,117 @@ class COPYDATASTRUCT(ctypes.Structure):
 PCOPYDATASTRUCT = ctypes.POINTER(COPYDATASTRUCT)
 
 
+WPRM_SETPARAM_ID = 0
+WPRM_PUTPARAM = 1
+WPRM_GETPARAM = 2
+WPRM_GETPARAM2 = 3
 WPRM_STOP = 4
 WPRM_RUN = 5
 WPRM_PREVPRESET = 11
 WPRM_NEXTPRESET = 12 
+
 COPY_SETACTIVEPRESET = 10
 COPY_GET_PRESETLIST = 14
 COPY_GET_SOURCEFILE = 15
 
 
+class WParamAction(eg.ActionClass):
+    
+    def __call__(self):
+        return self.plugin.SendFfdshowMessage(self.value)
+    
+    
+    
+class GetIntAction(eg.ActionClass):
+    
+    def __call__(self):
+        try:
+            hwnd = win32gui.FindWindow("ffdshow_remote_class", None)
+        except:
+            self.plugin.PrintError("ffdshow instance not found")
+            return None
+        return win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_GETPARAM2, self.value)
+    
+    
+    
+class SetIntAction(eg.ActionClass):
+    parameterDescription = "Set to:"
+    
+    def __call__(self, value=0):
+        try:
+            hwnd = win32gui.FindWindow("ffdshow_remote_class", None)
+        except:
+            self.plugin.PrintError("ffdshow instance not found")
+            return None
+        win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_SETPARAM_ID, self.value)
+        win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_PUTPARAM, value)
+    
+    
+    def Configure(self, value=0):
+        dialog = eg.ConfigurationDialog(self)
+        valueCtrl = eg.SpinIntCtrl(
+            dialog, 
+            min = -sys.maxint - 1, 
+            max = sys.maxint, 
+            value = value
+        )
+        dialog.AddLabel(self.parameterDescription)
+        dialog.AddCtrl(valueCtrl)
+        if dialog.AffirmedShowModal():
+            return (valueCtrl.GetValue(), )
+    
+    
+    
+class ChangeIntAction(SetIntAction):
+    parameterDescription = "Change by:"
+    
+    def __call__(self, value=0):
+        try:
+            hwnd = win32gui.FindWindow("ffdshow_remote_class", None)
+        except:
+            self.plugin.PrintError("ffdshow instance not found")
+            return None
+        oldValue = win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_GETPARAM2, self.value)
+        newValue = oldValue + value
+        win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_SETPARAM_ID, self.value)
+        win32gui.SendMessage(hwnd, self.plugin.mesg, WPRM_PUTPARAM, newValue)
+        return newValue
+    
+    
+    
+    
+CMDS = (
+    (WParamAction, "Run", "Run", None, 5),
+    (WParamAction, "Stop", "Stop", None, 4),
+    (GetIntAction, "GetSubtitleDelay", "Get Subtitle Delay", None, 812),
+    (SetIntAction, "SetSubtitleDelay", "Set Subtitle Delay", None, 812),
+    (ChangeIntAction, "ChangeSubtitleDelay", "Change Subtitle Delay", None, 812),
+    (WParamAction, "PreviousPreset", "Previous Preset", None, 11),
+    (WParamAction, "NextPreset", "Next Preset", None, 12),
+)
+
+
 class Ffdshow(eg.PluginClass):
     
+    def __init__(self):
+        for aType, aClsName, aName, aDescription, aValue in CMDS:
+            class tmpAction(aType):
+                name = aName
+                description = aDescription
+                value = aValue
+            tmpAction.__name__ = aClsName
+            self.AddAction(tmpAction)
+        self.AddAction(GetPresets)
+        self.AddAction(SetPreset)
+        
+        
     def __start__(self):
         self.mesg = win32gui.RegisterWindowMessage("ffdshow_remote_message")
         eg.messageReceiver.AddHandler(win32con.WM_COPYDATA, self.Handler)
         
         
+    @eg.LogIt
     def Handler(self, hwnd, mesg, wParam, lParam):
-        eg.whoami()
         cdsPointer = ctypes.cast(lParam, PCOPYDATASTRUCT)
         #print repr(cdsPointer.contents.lpData)
         return True
@@ -135,36 +255,6 @@ class Ffdshow(eg.PluginClass):
             return None
         return win32gui.SendMessage(hwnd, self.mesg, wParam, lParam)
 
-
-
-class Stop(eg.ActionClass):
-    
-    def __call__(self):
-        return self.plugin.SendFfdshowMessage(WPRM_STOP)
-        
-
-
-class Run(eg.ActionClass):
-    
-    def __call__(self):
-        return self.plugin.SendFfdshowMessage(WPRM_RUN)
-        
-
-
-class PreviousPreset(eg.ActionClass):
-    name = "Previous Preset"
-    
-    def __call__(self):
-        return self.plugin.SendFfdshowMessage(WPRM_PREVPRESET)
-        
-
-
-class NextPreset(eg.ActionClass):
-    name = "Next Preset"
-    
-    def __call__(self):
-        return self.plugin.SendFfdshowMessage(WPRM_NEXTPRESET)
-        
 
 
 class SetPreset(eg.ActionWithStringParameter):
@@ -208,5 +298,4 @@ class GetPresets(eg.ActionClass):
             eg.messageReceiver.hwnd, 
             ctypes.addressof(cds)
         )
-        
         

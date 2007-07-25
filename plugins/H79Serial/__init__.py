@@ -22,12 +22,12 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Optoma H79 Serial"
-    author = "Oliver Wagner"
-    version = "0.2"
-    kind = "external"
-    description = "Control an Optoma H79 projector via RS232"
+eg.RegisterPlugin(
+    name = "Optoma H79 Serial",
+    author = "Oliver Wagner",
+    version = "0.2." + "$LastChangedRevision$".split()[1],
+    kind = "external",
+    description = "Control an Optoma H79 projector via RS232",
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARn"
         "QU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdw"
@@ -44,14 +44,14 @@ class PluginInfo(eg.PluginInfo):
         "vkgC0UwOvlgKSS6Hvc7kIE3xxAeth2RpFKzErj+aRDidFTqb7C4hjVvvtkfdnSIHpwfK"
         "Jy+egSGXZQoV5JQaFK0HRwL2YefTSHyR3JWcB+CTyc/n3O8c4G37PQbHR7xw+l8e0yjW"
         "44dynujs+Qnye/WIemQx5AAAAABJRU5ErkJggg=="
-    )
+    ),
+)
 
 import wx
 import thread
 import time
 import re
 
-from eg import SpinIntCtrl
 
 cmdList = (
 ('PowerOn', 'Power On', 'OKOKOKOKOK', None ),
@@ -195,7 +195,5 @@ class H79Serial(eg.PluginClass):
         mySizer.Add(portCtrl, 0, wx.EXPAND)
         dialog.sizer.Add(mySizer)
         if dialog.AffirmedShowModal():
-            return (
-                portCtrl.GetValue(),
-            )
+            return (portCtrl.GetValue(), )
                     

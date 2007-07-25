@@ -1,9 +1,5 @@
-#
-# plugins/UIRT2/__init__.py
-#
-# Copyright (C) 2005 Lars-Peter Voss
-#
 # This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 # 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,20 +22,22 @@
 
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "UIRT2"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "remote"
+eg.RegisterPlugin(
+    name = "UIRT2",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "remote",
     description = (
-        'Hardware plugin for the "Universal InfraRed Transceiver V2".'
-    )
+        'Hardware plugin for the <a href="http://www.fukushima.us/UIRT2/">'
+        'Universal InfraRed Transceiver V2</a>.'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAaElEQVR42mNkoBAwDgMD"
         "/jMw/IeaRLJhIL1gAw4eOMBg7+AANwQsgYWNrrkR2QWkGALTXE+uAQ1APkgziguQQpU8"
         "F5BiAE4XNEIkGYkJRJghcANgmkmJRpAhjA1QA0jVjORlysDAGwAAHWBIBf4cTRAAAAAA"
         "SUVORK5CYII="
-    )
+    ),
+)
 
 
 import threading
@@ -273,7 +271,7 @@ class UIRT2(eg.RawReceiverPlugin):
         dialog.sizer.Add(portCtrl)
 
         if dialog.AffirmedShowModal():
-            return (portCtrl.GetValue(),)
+            return (portCtrl.GetValue(), )
     
     
     
@@ -366,7 +364,7 @@ class UIRT2(eg.RawReceiverPlugin):
             if dialog.AffirmedShowModal():
                 code1 = code1Ctrl.GetValue()
                 if len(code1) == 0:
-                    return None, cb.GetValue()
+                    return (None, cb.GetValue())
                 code2 = code2Ctrl.GetValue()
                 repeatCount = repeatCtrl.GetValue()
                 carrier = 3 - carrierCtrl.GetSelection()
@@ -383,4 +381,4 @@ class UIRT2(eg.RawReceiverPlugin):
                     bCmd2 = repeatCount | (carrier << 6)
                     code = chr(bCmd) + binascii.unhexlify(code1) \
                            + chr(bCmd2) + binascii.unhexlify(code2)
-                return code + calc_checksum(code), cb.GetValue()
+                return (code + calc_checksum(code), cb.GetValue())

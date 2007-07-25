@@ -1,9 +1,5 @@
-#
-# EventGhost.pyw
-#
-# Copyright (C) 2005 Lars-Peter Voss
-#
 # This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 # 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,24 +20,24 @@
 # $LastChangedRevision$
 # $LastChangedBy$
 
-#!python.exe
 
 # start the main program
 import sys
 import imp
-from os.path import dirname, abspath
+from os.path import dirname, abspath, join
 
 if hasattr(sys, "frozen"):
-    path = dirname(sys.executable)
+    programPath = dirname(unicode(sys.executable, sys.getfilesystemencoding()))
 else:
-    path = abspath(dirname(sys.argv[0])) 
-    
-imp.load_source("Main", path + "/eg/Main.py")
+    programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
+   
+imp.load_source("Main", join(programPath, "eg", "Main.py").encode('mbcs'))
 
 print "should never come here"
 # The "imports" module file is created by the tools/MakeImports.py script
 # and is located in the "tools" directory also.
 # It includes all modules the program might need. This way we force py2exe
 # to include them in the distribution.
+import greenlet
 import imports
 

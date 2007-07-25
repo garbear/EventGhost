@@ -1,8 +1,30 @@
-import wx
-import eg
-from ContainerItem import ContainerItem
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import pythoncom
 import time
+import wx
+import eg
+from TreeItems.ContainerItem import ContainerItem
 
 
 class RootItem(ContainerItem):
@@ -10,6 +32,8 @@ class RootItem(ContainerItem):
     iconIndex = eg.SetupIcons("root")
     time = None
     guid = None
+    isDeactivatable = False
+    isRenameable = False            
     
     def WriteToXML(self):
         attr, text, childs = ContainerItem.WriteToXML(self)
@@ -29,8 +53,8 @@ class RootItem(ContainerItem):
     def __init__(self, parent, node):
         parent = None
         ContainerItem.__init__(self, parent, node)
-        self.guid = node.attrib.get("guid")
-        self.time = node.attrib.get("time")
+        self.guid = node.attrib.get("guid", "0")
+        self.time = node.attrib.get("time", "0")
         self.name = eg.text.General.configTree
          
         
@@ -63,10 +87,20 @@ class RootItem(ContainerItem):
             child._Delete()
 
 
-    def IsEditable(self):
-        return False
+    #@eg.AssertNotMainThread
+    def Select(self):
+        if self.tree:
+            self.tree.SelectItem(self.id)
+
     
+    def EnsureValidId(self, tree):
+        pass
+            
+            
+    def _HasValidId(self):
+        return True
     
+        
     def CanCut(self):
         return False
     
@@ -79,18 +113,14 @@ class RootItem(ContainerItem):
         return False
     
     
-    def CanDisable(self):
-        return False
-    
-    
-    def Enable(self, flag):
+    def Enable(self, flag=True):
         pass
     
     
     def DropTest(self, cls):
-        if cls == MacroItem:
+        if cls == eg.MacroItem:
             return 1 # 1 = item would be dropped inside
-        if cls == FolderItem:
+        if cls == eg.FolderItem:
             return 1 # 1 = item would be dropped inside
         return None  # None = item cannot be dropped on it
     

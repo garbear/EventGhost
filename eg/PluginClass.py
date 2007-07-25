@@ -1,6 +1,29 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 """ Definition of the abstract PluginClass. """
 
 import eg
+import sys
 import wx
 from PluginMetaClass import PluginMetaClass
 from ActionGroup import CreateAction
@@ -19,10 +42,6 @@ class PluginClass(object):
     #: it yourself. It will be set from the information you supplied in 
     #: the __info__.py and might get translated to the user's current language.
     description = None
-    
-    #: If your plugin supports more than one instance in the 
-    #: configuration-tree, set 'canMultiLoad' to True in your class-definition.
-    canMultiLoad = False
     
     #: don't try to manipulate this private variable yourself.
     info = None
@@ -184,7 +203,8 @@ class PluginClass(object):
     
     
     def AddAllActions(self):
-        for actionClass in self.info.actionClassList:
+        #for actionClass in self.info.actionClassList:
+        for actionClass in sys.modules[self.__module__].__allActionClasses__:
             self.AddAction(
                 actionClass, 
                 issubclass(actionClass, eg.HiddenAction)
@@ -210,14 +230,13 @@ class PluginClass(object):
         Print an error message to the logger.
         
         Prefer to use self.PrintError instead of eg.PrintError, since this
-        method might get enhanced in the future to give the user better
-        information about the source of the error.
+        method gives the user better information about the source of the error.
         
         :Parameters:
           `msg` : string
             The error message you want to have printed to the logger
         """
-        eg.PrintError(msg)
+        eg.log.DoItemPrint(msg, 1, self.info.treeItem)
         
         
     def Configure(self, *args):
@@ -232,8 +251,10 @@ class PluginClass(object):
         with the same arguments as the __start__ method would receive.
         """
         dialog = eg.ConfigurationDialog(self)
+        dialog.buttonRow.applyButton.Enable(False)
         label = wx.StaticText(dialog, -1, eg.text.General.noOptionsPlugin)
         dialog.sizer.Add(label)
-        dialog.AffirmedShowModal()
+        if dialog.AffirmedShowModal():
+            return ()
         
         

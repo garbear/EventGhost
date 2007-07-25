@@ -1,3 +1,25 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import threading
 import base64
 import pickle
@@ -8,14 +30,15 @@ from xml.sax.saxutils import quoteattr
 import wx
 
 import eg
-from ActionItem import ActionItem
-from TreeItem import TreeItem
+from TreeItems.ActionItem import ActionItem
+from TreeItems.TreeItem import TreeItem
 
 
 
 class PluginItem(ActionItem):
     xmlTag = "Plugin"
     iconIndex = eg.SetupIcons("plugin")
+    isRenameable = False            
     
     def WriteToXML(self):
         attr, text, childs = TreeItem.WriteToXML(self)
@@ -37,19 +60,14 @@ class PluginItem(ActionItem):
         pluginStr = node.attrib['file']
         self.isStarted = False
         self.pluginFile = pluginStr
-        self.executable = plugin = eg.OpenPlugin(pluginStr, ident)
+        self.executable = plugin = eg.OpenPlugin(pluginStr, ident, self.args, self)
         if plugin is None or plugin.info.initFailed:
-            eg.PrintError("Error loading plugin: %s" % pluginStr)
+            #eg.PrintError("Error loading plugin: %s" % pluginStr)
             self.name = pluginStr + " not found"
             self.isInErrorState = True
             #plugin.info.label = pluginStr
         else:
-            try:
-                label = plugin.GetLabel(*self.args)
-            except:
-                label = plugin.info.name
-            plugin.info.label = label
-            self.name = eg.text.General.pluginLabel % label
+            self.name = eg.text.General.pluginLabel % plugin.info.label
             self.iconIndex = plugin.info.iconIndex
             self.isInErrorState = False
 
@@ -58,8 +76,8 @@ class PluginItem(ActionItem):
         return self.name
         
     
+    @eg.LogIt
     def RestoreState(self):
-        eg.whoami()
         if self.isEnabled:
             eg.actionThread.Call(self.StartPlugin)
             
@@ -95,8 +113,8 @@ class PluginItem(ActionItem):
         if eg.config.logActions:
             self.DoPrint(self.name)
         if self.shouldSelectOnExecute:
-            self.Select()
-            #wx.CallAfter(self.Select)
+            #self.Select()
+            wx.CallAfter(self.Select)
         self.StartPlugin()
         eg.result = self.executable
         return None, None
@@ -116,8 +134,9 @@ class PluginItem(ActionItem):
             self.executable.__start__(*self.args)
             self.executable.info.isStarted = True
         except eg.Exception, e:
-            eg.PrintError(eg.text.Error.pluginStartError % self.executable.name)
-            eg.PrintError(e.message)
+            msg = eg.text.Error.pluginStartError % self.executable.name
+            msg += "\n" + unicode(e.message)
+            eg.log.DoItemPrint(msg, 1, self)
             self.SetErrorState(True)
         except:
             eg.PrintError(eg.text.Error.pluginStartError % self.executable.name)
@@ -194,11 +213,7 @@ class PluginItem(ActionItem):
         return self.AskDelete()
     
     
-    def IsEditable(self):
-        return False
-    
-    
-    def NeedsConfiguration(self):
+    def NeedsStartupConfiguration(self):
         if self.executable.Configure.im_func != eg.PluginClass.Configure.im_func:
             return True
         return False
@@ -220,8 +235,12 @@ class PluginItem(ActionItem):
             label = self.executable.GetLabel(*args)
             if label != self.executable.info.label:
                 self.executable.info.label = label
+                self.name = eg.text.General.pluginLabel % label
                 if self.id:
-                    self.tree.SetItemText(self.id, label)
+                    self.tree.SetItemText(
+                        self.id, 
+                        self.name
+                    )
                 self.RefreshAllVisibleActions()
             if self.isEnabled:
                 eg.actionThread.Call(self.StopPlugin)

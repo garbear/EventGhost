@@ -1,9 +1,5 @@
-#
-# eg/Init.py
-#
-# Copyright (C) 2005 Lars-Peter Voss
-#
 # This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 # 
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +22,7 @@
 
 import sys
 import os
+import imp
 import pythoncom
 import asynchat
 import thread
@@ -35,88 +32,13 @@ import asyncore
 import threading
 import traceback
 import linecache
-
+from os.path import exists
 import wx
-
-
-class ResultProperty(object):
-    
-    def __get__(self, instance, owner):
-        return self.value
-    
-    def __set__(self, instance, value):
-        self.value = value
-        
-    def __delete__(self, instance, value):
-        raise "Can't delete this variable"
-        
-resultProperty = ResultProperty()
+import locale
 
 
 
-class GlobalsDict(dict):
-    def keys(self):
-        eg.whoami()
-        x = dict.keys(self)
-        x.append("result")
-        return x
-    
-    def items(self):
-        eg.whoami()
-        x = dict.items(self)
-        x.append(("result", resultProperty.value))
-        return x
-    
-    def __getitem__(self, key):
-        if key == "result":
-            return resultProperty.value
-        return dict.__getitem__(self, key)
-    
-    def __setitem__(self, key, value):
-        if key == "result":
-            resultProperty.value = value
-            return
-        dict.__setitem__(self, key, value)
-    
-    def iteritems(self):
-        eg.whoami()
-        dict.iteritems(self)
-        yield ("result", resultProperty.value)
-    
-    def iterkeys(self):
-        eg.whoami()
-        dict.iterkeys(self)
-        yield "result"
-    
-    def copy(self):
-        eg.whoami()
-        return dict.copy(self)
-    
-    def update(self, b):
-        eg.whoami()
-        return dict.update(self, b)
-    
-    def has_key(self, key):
-        eg.whoami()
-        return dict.has_key(self, key)
-    
-    def len(self):
-        eg.whoami()
-        return dict.len(self) + 1
-    
-    
-class GlobalsBunch(object):
-    
-    result = resultProperty
-    def __new__(cls):
-        inst = object.__new__(cls)
-        inst.__dict__ = GlobalsDict()
-        return  inst
-        
-        
-    
 class EventGhost(object):
-    result = resultProperty
     
     class Exception(Exception):
         def __init__(self, message):
@@ -129,19 +51,31 @@ class EventGhost(object):
     class StopException(Exception):
         pass
     
+    
     class HiddenAction:
         pass
     
     
     def __init__(self):
-        sys.modules["eg"] = self
+        sys.modules["eg"] = self        
         
         
-    def Init(self, debugLevel):
+    def Init(self, args):
         global eg
         eg = self
+        self.systemEncoding = encoding = locale.getdefaultlocale()[1]
+        self.CallAfter = wx.CallAfter
         self.APP_NAME = "EventGhost"
-        self.debugLevel = debugLevel
+        self.PLUGIN_DIR = os.path.abspath("plugins")
+        
+        # we create a package 'pluginImport' and set its path to the plugin-dir
+        # se we can simply use __import__ to load a plugin file 
+        pluginPackage = imp.new_module("pluginImport")
+        pluginPackage.__path__ = [self.PLUGIN_DIR]
+        sys.modules["pluginImport"] = pluginPackage
+        
+        self.startupArguments = args
+        self.debugLevel = args.debugLevel
         self.__InitPIL()
         self.__InitAsyncore()
         
@@ -149,37 +83,25 @@ class EventGhost(object):
         from Utils import Bunch, EventHook
         self.Bunch = Bunch
         self.EventHook = EventHook
-        #self.text = Bunch()
-        #self.text = Text
-        #self.originalText = Bunch()
-        self.mainFrame = None
-        self.treeCtrl = None
-        self.logCtrl = None
+        self.document = None
+        
         self.result = None
         self.event = None
         self.eventTable = {}
         self.eventTable2 = {}
-        self.EventString = '' # eg.EventString is deprecated
         self.plugins = Bunch()
-        self.pluginFileInfo = {}
         self.pluginClassInfo = {}
-        self.corePlugins = {}
-        self.globals = GlobalsBunch()
+        self.globals = Bunch()
         self.globals.eg = self
+        self.result = None
         self.mainThread = threading.currentThread()
-        self.isRunning = True
         self.onlyLogAssigned = False
         self.programCounter = None
         self.programReturnStack = []
         self.stopExecutionFlag = False
         self.lastFoundWindows = []
+        self.currentConfigureItem = None
         
-        self.Plugin = self.plugins # eg.Plugin is deprecated
-        self.Global = self.globals # eg.Global is deprecated
-
-        self._lastDefinedPluginClass = None
-        self._lastDefinedPluginClassInfo = None
-
         from Version import version, buildNum, compileTime, svnRevision
         self.version = version
         self.buildNum = buildNum
@@ -187,8 +109,18 @@ class EventGhost(object):
         self.versionStr = "%s.%s" % (version, buildNum)
         self.svnRevision = svnRevision
 
-        from Utils import logit
-        self.logit = logit
+        from Utils import (
+            LogIt, 
+            LogItWithReturn, 
+            TimeIt,
+            AssertNotMainThread, 
+            AssertNotActionThread
+        )
+        self.LogIt = LogIt
+        self.LogItWithReturn = LogItWithReturn
+        self.TimeIt = TimeIt
+        self.AssertNotMainThread = AssertNotMainThread
+        self.AssertNotActionThread = AssertNotActionThread
         
         from MessageReceiver import MessageReceiver
         self.messageReceiver = MessageReceiver()
@@ -197,14 +129,21 @@ class EventGhost(object):
         # exists, we simply create it first
         from App import MyApp
         self.app = MyApp(0)
-        
-        if not debugLevel:
+
+        if True:#not args.translate:
+            import Log
+            self.log = Log.Log()
+            self.DoPrint = self.log.DoPrint
+        if not self.debugLevel:
             def _DummyFunc(*args, **kwargs):
                 pass
-            self.notice = _DummyFunc
-            self.whoami = _DummyFunc
+            self.Notice = _DummyFunc
+            self.DebugNote = _DummyFunc
         else:
-            if debugLevel == 2:
+            import warnings
+            warnings.simplefilter('error', UnicodeWarning)
+
+            if self.debugLevel == 2:
                 fd = open("Log.txt", "at")
                 class writer:
                     def write(self, data):
@@ -212,16 +151,21 @@ class EventGhost(object):
                         fd.flush()
                 sys.stderr = writer()
                 
-            from Utils import notice, whoami
-            self.notice = notice
-            self.whoami = whoami
+            from Utils import DebugNote
+            self.Notice = DebugNote
+            self.DebugNote = DebugNote
     
-            notice("----------------------------------------")
-            notice("        EventGhost started")
-            notice("----------------------------------------")
-            notice("Version:", self.versionStr)
+            DebugNote("----------------------------------------")
+            DebugNote("        EventGhost started")
+            DebugNote("----------------------------------------")
+            DebugNote("Version:", self.versionStr)
             
 
+        from ConfigData import LoadConfig, SaveConfig
+        self.config = config = LoadConfig()
+        self.SaveConfig = SaveConfig
+        self.onlyLogAssigned = config.onlyLogAssigned
+        
         import IconTools
         IconTools.Init()
         self.IconTools = IconTools
@@ -230,33 +174,21 @@ class EventGhost(object):
         self.AddPluginIcon = IconTools.AddPluginIcon
         sys.modules["eg.IconTools"] = IconTools
         
-        from ConfigData import LoadConfig, SaveConfig
-        self.config = config = LoadConfig()
-        self.SaveConfig = SaveConfig
-        self.onlyLogAssigned = config.onlyLogAssigned
-        
         from LanguageTools import LoadStrings, GetTranslation
         self.GetTranslation = GetTranslation
         self.text = LoadStrings(config.language)
 
         import WinAPI
-        import Controls
-        import Dialogs
         import TreeItems
         import cFunctions
         sys.modules["eg.WinAPI"] = WinAPI
         self.WinAPI = WinAPI
-        sys.modules["eg.Controls"] = Controls
-        sys.modules["eg.Dialogs"] = Dialogs
         sys.modules["eg.TreeItems"] = TreeItems
         sys.modules["eg.cFunctions"] = cFunctions
     
         from Utils import SetClass
         from Text import Text
         SetClass(self.text, Text)
-
-        #from Dialogs.Dialog import Dialog
-        #self.Dialog = Dialog
 
         self.DoImports1()
         
@@ -266,36 +198,35 @@ class EventGhost(object):
         self.DoImports2()
 
         # replace builtin input and raw_input with a small dialog
-        from eg.Dialogs.SimpleInputDialog import (
-            GetSimpleRawInput, 
-            GetSimpleInput
-        )
-        sys.modules['__builtin__'].raw_input = GetSimpleRawInput
-        sys.modules['__builtin__'].input = GetSimpleInput
+#        from Dialogs.SimpleInputDialog import (
+#            GetSimpleRawInput, 
+#            GetSimpleInput
+#        )
+#        sys.modules['__builtin__'].raw_input = GetSimpleRawInput
+#        sys.modules['__builtin__'].input = GetSimpleInput
 
         from WinAPI.SerialPort import EnumSerialPorts as GetAllPorts
         self.SerialPort.GetAllPorts = classmethod(GetAllPorts)
         
-        eg.notice("Creating SendKeys parser")
+        eg.DebugNote("Creating SendKeys parser")
         from WinAPI.SendKeys import SendKeysParser
         _sendKeysObj = SendKeysParser()
         self.SendKeys = _sendKeysObj.Parse
 
         self.actionList = []
         
+        from PluginDatabase import PluginDatabase
+        self.pluginDatabase = PluginDatabase()
         
-    def StartGui(self, startupEvent, startupFile, hideOnStartup):
+        
+    def StartGui(self):
         self.InitWin32Com()
-        self.messageReceiver.start()
+        self.messageReceiver.Start()
         
+        from Document import Document
+        self.document = Document()
         eg.app.SetupGui()
-        
-        from MainFrame import MainFrame
-        self.mainFrame = MainFrame()
-                
-        self.logCtrl = self.mainFrame.logCtrl
-        self.treeCtrl = self.mainFrame.treeCtrl
-        self.DoPrint = self.logCtrl.DoPrint
+                        
         self.SetProcessingState = eg.app.taskBarIcon.SetProcessingState
 
         from ActionThread import ActionThread
@@ -303,20 +234,19 @@ class EventGhost(object):
         
         from EventGhostEvent import Init
         Init()
-        actionThread.start()
+        actionThread.Start()
 
         from EventThread import EventThread
         self.eventThread = eventThread = EventThread()
-        eventThread.startupEvent = startupEvent
+        eventThread.startupEvent = self.startupArguments.startupEvent
         self.TriggerEvent = eventThread.TriggerEvent
         self.TriggerEnduringEvent = eventThread.TriggerEnduringEvent
-        
+                    
         self.__class__.__setattr__ = self.__post__setattr__
         
         config = self.config
-        self.app.SetTopWindow(self.mainFrame)
-        self.mainFrame.Show(not (config.hideOnStartup or hideOnStartup))
 
+        startupFile = self.startupArguments.startupFile
         if (
             startupFile is None 
             and config.useAutoloadFile 
@@ -329,12 +259,18 @@ class EventGhost(object):
             else:
                 startupFile = config.autoloadFilePath
                 
-        eventThread.start()
+        eventThread.Start()
         wx.CallAfter(eventThread.Call, eventThread.StartSession, startupFile)
         if config.checkUpdate:
-            from CheckUpdate import CheckUpdate
-            wx.CallAfter(CheckUpdate)
-            
+            # avoid more than one check per day
+            today = time.gmtime()[:3]
+            if config.lastUpdateCheckDate != today:
+                config.lastUpdateCheckDate = today
+                from CheckUpdate import CheckUpdate
+                wx.CallAfter(CheckUpdate)
+                
+        self.DoPrint(self.text.MainFrame.Logger.welcomeText)
+
             
     __setattr_set = frozenset(
         (
@@ -351,40 +287,37 @@ class EventGhost(object):
         if name in self.__setattr_set:
             object.__setattr__(self, name, value)
         else:
-            raise "Can't assign to eg-instance"
+            raise Exception("Can't assign to eg-instance")
 
 
     def SetAttr(self, name, value):
+        if not hasattr(self, name):
+            raise AttributeError("eg has not attribute '%s'" % name)
         object.__setattr__(self, name, value)
         
         
-    def DoImport(self, *imports):
-        g = globals()
-        l = locals()
-        for line in imports:
-            if type(line) == type(()):
-                name, items = line
-                module = __import__(name, g, l, items, -1)
-                for item in items:
-                    self.__dict__[item] = getattr(module, item)
-            else:
-                module = __import__(line, g, l, [], -1)
-                name = line.split(".")[-1]
-                self.__dict__[name] = getattr(getattr(module, name), name)
-        
-        
+    def __getattr__(self, name):
+        try:
+            mod = __import__("Controls.%s" % name, fromlist=[name])
+        except ImportError:
+            try:
+                mod = __import__("Dialogs.%s" % name, fromlist=[name])
+            except ImportError:
+                raise AttributeError
+        eg.DebugNote("Loaded module %s" % name)
+        attr = getattr(mod, name)
+        self.__dict__[name] = attr
+        return attr
+    
+    
     def DoImports1(self):
         from sys import exit as Exit
         
-        self.DoImport(
-            "Dialogs.Dialog",
-            ("Utils", ["hexstring", "ParseString"]),
-            ("ThreadWorker", ["ThreadWorker"]),
-        )
-        #from Utils import hexstring, ParseString
-        #from ThreadWorker import ThreadWorker
+        from Utils import hexstring, ParseString
+        from ThreadWorker import ThreadWorker
 
         import wx
+        from wx import CallAfter
         from wx.html import HW_NO_SELECTION
         from Validators import DigitOnlyValidator, AlphaOnlyValidator
         from WinAPI.Pathes import (
@@ -393,54 +326,10 @@ class EventGhost(object):
             PROGRAMFILES, 
             TEMPDIR, 
         )
+        self.CONFIG_DIR = os.path.join(APPDATA, self.APP_NAME)
         from WinAPI.Shortcut import CreateShortcut
-        from WinAPI.Utils import ShrinkMemory, BringHwndToFront
+        from WinAPI.Utils import BringHwndToFront
         from WinAPI.serial import Serial as SerialPort
-
-        self.DoImport(
-            ("Controls.Menu", ["MenuBar", "Menu"]),
-            "Controls.ButtonRow", 
-            "Controls.StaticTextBox",
-            "Controls.HtmlWindow",
-            "Controls.HyperLinkCtrl",
-            ("Controls.FileBrowseButton", ["FileBrowseButton", "DirBrowseButton"]),
-        )
-#        self.DoImport(
-#            ("Controls",
-#                ("Menu", 
-#                    ["MenuBar", "Menu"]),
-#                "ButtonRow", 
-#                "StaticTextBox",
-#                "HtmlWindow",
-#                "HyperLinkCtrl",
-#                ("FileBrowseButton", 
-#                    ["FileBrowseButton", "DirBrowseButton"]),
-#            )
-#        )
-        #from Controls.Menu import MenuBar, Menu
-        #from Controls.ButtonRow import ButtonRow
-        #from Controls.StaticTextBox import StaticTextBox
-        #from Controls.HtmlWindow import HtmlWindow
-        #from Controls.HyperLinkCtrl import HyperLinkCtrl
-        #from Controls.FileBrowseButton import (
-        #    FileBrowseButton, 
-        #    DirBrowseButton
-        #)
-        from Controls.BrowseItemButton import BrowseMacroButton
-        from Controls.SpinNumCtrl import SpinNumCtrl
-        from Controls.SpinNumCtrl import SpinIntCtrl
-        from Controls.FontButton import FontButton
-        from Controls.ColourSelectButton import ColourSelectButton
-        from Controls.DisplayChoice import DisplayChoice
-        from Controls.StatusBar import StatusBar
-        from Controls.ToolBar import ToolBar
-        from Controls.SerialPortChoice import SerialPortChoice
-        from Controls.RadioBox import RadioBox
-
-        from Dialogs.HTMLDialog import HTMLDialog
-        from Dialogs.ConfigurationDialog import ConfigurationDialog
-
-        from License import html as license
 
         from PluginClass import PluginClass
         from IrDecoder import IrDecoder
@@ -450,20 +339,18 @@ class EventGhost(object):
         from ActionGroup import ActionGroup
 
         #from time import sleep as Wait
-        import TreeItems
-        from TreeItems import (
-            TreeItem, 
-            ContainerItem, 
-            EventItem, 
-            RootItem,
-            MacroItem, 
-            FolderItem, 
-            ActionItem,
-            AutostartItem, 
-            PluginItem, 
-        )
+        #import TreeItems
+        from TreeItems.TreeItem import TreeItem
+        from TreeItems.ContainerItem import ContainerItem
+        from TreeItems.EventItem import EventItem
+        from TreeItems.RootItem import RootItem
+        from TreeItems.MacroItem import MacroItem
+        from TreeItems.FolderItem import FolderItem
+        from TreeItems.ActionItem import ActionItem
+        from TreeItems.AutostartItem import AutostartItem
+        from TreeItems.PluginItem import PluginItem
         from TreeItems.TreeLink import TreeLink
-
+        from greenlet import greenlet as Greenlet
         self.__dict__.update(locals())
         
         
@@ -472,7 +359,7 @@ class EventGhost(object):
             OpenPlugin, 
             ClosePlugin, 
             GetPluginInfo,
-            PluginInfo,
+            GetPluginInfoList
         )
         self.__dict__.update(locals())
         
@@ -492,12 +379,12 @@ class EventGhost(object):
         # application data directory instead of its package directory.
         # When the program runs "frozen" it would not be able to modify
         # the package directory
-        __gen_path__ = os.path.join(self.APPDATA, "EventGhost", "gen_py")
-        if not os.path.exists(__gen_path__):
-            os.makedirs(__gen_path__)
+        genPath = os.path.join(self.CONFIG_DIR, "gen_py").encode('mbcs')
+        if not os.path.exists(genPath):
+            os.makedirs(genPath)
         import win32com
-        win32com.__gen_path__ = __gen_path__
-        sys.modules["win32com.gen_py"].__path__ = [__gen_path__]
+        win32com.__gen_path__ = genPath
+        sys.modules["win32com.gen_py"].__path__ = [genPath]
         import win32com.client
         win32com.client.gencache.is_readonly = False
         
@@ -542,19 +429,16 @@ class EventGhost(object):
         
 
     def DeInit(self):
-        eg.whoami()
-        self.__dict__["isRunning"] = False
-        
-        self.notice("stopping Threads")
+        self.Notice("stopping threads")
         self.actionThread.CallWait(self.actionThread.StopSession)
-        self.actionThread.stop()
-        self.eventThread.stop()
+        self.actionThread.Stop()
+        self.eventThread.Stop()
         
-        self.notice("shutting down")
+        self.Notice("shutting down")
         self.config.onlyLogAssigned = self.onlyLogAssigned
         self.SaveConfig()
         self.__DeInitAsyncore()
-        self.messageReceiver.close()
+        self.messageReceiver.Close()
         
         
     def Wait(self, secs, raiseException=True):
@@ -572,9 +456,13 @@ class EventGhost(object):
         return True
         
         
+    def RegisterPlugin(self, **kwargs):
+        pass
+    
+    
     def RegisterEvent(self, eventString, eventHandler):
         eventTable = self.eventTable
-        if not eventTable.has_key(eventString):
+        if eventString not in eventTable:
             eventTable[eventString] = []
         eventTable[eventString].append(eventHandler)
     
@@ -605,7 +493,7 @@ class EventGhost(object):
 
     def Bind(self, eventString, eventFunc):
         eventTable = self.eventTable2
-        if not eventTable.has_key(eventString):
+        if eventString not in eventTable:
             eventTable[eventString] = []
         eventTable[eventString].append(eventFunc)
     
@@ -641,6 +529,7 @@ class EventGhost(object):
                         currentItem.parent.GetNextChild(currentIndex)
                     )
                 else:
+                    print currentItem.parent
                     self.SetProgramCounter(None)
                 
             if self.programCounter is None:
@@ -666,12 +555,12 @@ class EventGhost(object):
             else:
                 return str(s)
         text = " ".join([convert(arg) for arg in args])
-        self.logCtrl.DoPrint(text, 1)
+        self.log.DoPrint(text, 1)
 
 
     def PrintNotice(self, *args):
         text = " ".join([str(arg) for arg in args])
-        self.logCtrl.DoPrint(text, 2)
+        self.log.DoPrint(text, 2)
 
 
     def PrintTraceback(self, msg=None, skip=0):
@@ -709,4 +598,8 @@ class EventGhost(object):
             config = config.setdefault(part, eg.Bunch)
         return config.setdefault(parts[-1], defaultCls)
             
+            
+    def DummyFunc(*args, **kwargs):
+        pass
+
             

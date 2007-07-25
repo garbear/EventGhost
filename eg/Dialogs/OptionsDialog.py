@@ -1,3 +1,24 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
 
 import os
 import sys
@@ -29,8 +50,8 @@ Text = eg.GetTranslation(Text)
 
 class OptionsDialog(eg.Dialog):
     
-    def __init__(self, parent=None):
-        wx.Dialog.__init__(
+    def __init__(self, parent):
+        eg.Dialog.__init__(
             self, 
             parent, 
             -1,
@@ -41,7 +62,7 @@ class OptionsDialog(eg.Dialog):
         self.languageList = ["en_EN"]
         for item in os.listdir("Languages"):
             name, ext = os.path.splitext(item)
-            if ext == ".py" and languageNames.has_key(name):
+            if ext == ".py" and name in languageNames:
                 self.languageList.append(name)
         self.languageList.sort()
         self.languageNameList = [
@@ -84,7 +105,7 @@ class OptionsDialog(eg.Dialog):
         confirmDeleteCheckBox.SetValue(eg.config.confirmDelete)
         self.confirmDeleteCheckBox = confirmDeleteCheckBox
 
-        chLanguage = wx.combo.BitmapComboBox(
+        languageChoice = wx.combo.BitmapComboBox(
             page1,
             -1, 
             style=wx.CB_READONLY
@@ -95,12 +116,12 @@ class OptionsDialog(eg.Dialog):
                 image = wx.Image(filename)
                 image.Resize((16, 16), (0, 3))
                 bmp = image.ConvertToBitmap()
-                chLanguage.Append(name, bmp)
+                languageChoice.Append(name, bmp)
             else:
-                chLanguage.Append(name)
-        chLanguage.SetSelection(self.languageList.index(eg.config.language))
-        chLanguage.SetMinSize((150, -1))
-        self.chLanguage = chLanguage
+                languageChoice.Append(name)
+        languageChoice.SetSelection(self.languageList.index(eg.config.language))
+        languageChoice.SetMinSize((150, -1))
+        self.languageChoice = languageChoice
 
         self.buttonRow = eg.ButtonRow(self, (wx.ID_OK, wx.ID_CANCEL))
         
@@ -129,7 +150,7 @@ class OptionsDialog(eg.Dialog):
         
         static_box = wx.StaticBox(page1, -1, Text.LanguageGroup)
         langGroupSizer = wx.StaticBoxSizer(static_box, wx.VERTICAL)
-        langGroupSizer.Add(chLanguage, 0, wx.LEFT|wx.RIGHT, 18)
+        langGroupSizer.Add(languageChoice, 0, wx.LEFT|wx.RIGHT, 18)
         
         page1Sizer = wx.BoxSizer(wx.VERTICAL)
         page1Sizer.Add((15, 7), 1)
@@ -182,7 +203,7 @@ class OptionsDialog(eg.Dialog):
         eg.config.limitMemorySize = self.memoryLimitSpinCtrl.GetValue()
         eg.config.confirmDelete = self.confirmDeleteCheckBox.GetValue()
         
-        language = self.languageList[self.chLanguage.GetSelection()]
+        language = self.languageList[self.languageChoice.GetSelection()]
         if eg.config.language != language:
             dlg = wx.MessageDialog(
                 self,
@@ -194,5 +215,11 @@ class OptionsDialog(eg.Dialog):
             dlg.Destroy()
         eg.config.language = language
         eg.SaveConfig()
+        self.Destroy()
+        event.Skip()
+
+
+    def OnCancel(self, event):
+        self.Destroy()
         event.Skip()
 

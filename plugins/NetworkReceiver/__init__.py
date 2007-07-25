@@ -1,10 +1,32 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
 
-class PluginInfo(eg.PluginInfo):
-    name = "Network Event Receiver"
-    description = "Receives events from Network Event Sender plugins."
-    version = "1.0.0"
-    author = "Bitmonster"
+eg.RegisterPlugin(
+    name = "Network Event Receiver",
+    description = "Receives events from Network Event Sender plugins.",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    author = "Bitmonster",
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QAAAAAAAD5Q7t/"
         "AAAACXBIWXMAAAsSAAALEgHS3X78AAAAB3RJTUUH1gIQFgQb1MiCRwAAAVVJREFUOMud"
@@ -15,7 +37,8 @@ class PluginInfo(eg.PluginInfo):
         "OxicACG6bPH4uIu1UHjE7sFqR/NDVxhaoixLvFYbtDufNFtu1tzxgdeAaZfBU7ECTvd1"
         "WRlxsa4sp1ydkiRxkstmlEFRrWT4nrRer3vmlf6mb883fK8AoF1d+Bqc6Xkt+cufT6e3"
         "dnb9DJJrq+uYpunZ2WcFfA0ol8v8N5Qgvr/EN8Lzfbs+L0goAAAAAElFTkSuQmCC"
-    )
+    ),
+)
 
 import wx
 
@@ -28,7 +51,7 @@ import socket
 
 
 class Text:
-    port = "Port:"
+    port = "TCP/IP Port:"
     password = "Password:"
     event_prefix = "Event Prefix:"
     
@@ -37,8 +60,8 @@ class Text:
 class Server_Handler (asynchat.async_chat):
     """Telnet engine class. Implements command line user interface."""
     
-    def __init__ (self, sock, addr, hex_md5, cookie, handler, server_ref):
-        self.handler = handler
+    def __init__ (self, sock, addr, hex_md5, cookie, plugin, server_ref):
+        self.plugin = plugin
         self.server_ref = server_ref
         
         # Call constructor of the parent class
@@ -57,7 +80,7 @@ class Server_Handler (asynchat.async_chat):
                   
                 
     def handle_close(self):
-        self.handler.EndLastEvent()
+        self.plugin.EndLastEvent()
         asynchat.async_chat.handle_close(self)
     
     
@@ -87,7 +110,7 @@ class Server_Handler (asynchat.async_chat):
         if self.writable():
             self.push("close\n")
         #asynchat.async_chat.handle_close(self)
-        self.handler.EndLastEvent()
+        self.plugin.EndLastEvent()
         self.state = self.state1
  
 
@@ -117,18 +140,19 @@ class Server_Handler (asynchat.async_chat):
             
             
     def state3(self, line):
+        line = line.decode(eg.systemEncoding)
         if line == "close":
             self.initiate_close()
         elif line[:8] == "payload ":
             self.payload.append(line[8:])
         else:
             if line == "ButtonReleased":
-                self.handler.EndLastEvent()
+                self.plugin.EndLastEvent()
             else:
                 if self.payload[-1] == "withoutRelease":
-                    self.handler.TriggerEnduringEvent(line, self.payload)
+                    self.plugin.TriggerEnduringEvent(line, self.payload)
                 else:
-                    self.handler.TriggerEvent(line, self.payload)
+                    self.plugin.TriggerEvent(line, self.payload)
             self.payload = [self.ip]
             
             
@@ -206,5 +230,5 @@ class NetworkReceiver(eg.PluginClass):
         dialog.AddCtrl(ctrl3)
         
         if dialog.AffirmedShowModal():
-            return ctrl1.GetValue(), ctrl2.GetValue(), ctrl3.GetValue()
+            return (ctrl1.GetValue(), ctrl2.GetValue(), ctrl3.GetValue())
 

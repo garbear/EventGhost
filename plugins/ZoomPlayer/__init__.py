@@ -1,28 +1,53 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
 import eg
     
-class PluginInfo(eg.PluginInfo):
-    name = "Zoom Player"
-    author = "Bitmonster"
-    version = "1.0.0"
-    kind = "program"
-    description = """
-Adds support functions to control the famous Zoom Player.
-
-<p>
-<b>Notice:</b><br>
-To make it work, you have to enable TCP control in Zoom Player. Either enable it
-in the options of Zoom Player under:
-<p>
-<i>Option/Setup => Values & Tools => Interface => Enable External TCP Control</i>
-<P>
-or call the executable with the option <i>/TCP:[port]</i>
-<p>
-<b>Hint:</b><br>
-Disable scroll acceleration in Zoom Player. Otherweise scrolling in navigators 
-might be jumpy if you use autorepeat in EventGhost (which has a more 
-sophisticated scroll acceleration). You find the setting in Zoom Player under:<br>
-<i>Option/Setup => OSD => Navigators => Settings => Disable Scroll Acceleration</i>
-"""
+eg.RegisterPlugin(
+    name = "Zoom Player",
+    author = "Bitmonster",
+    version = "1.0." + "$LastChangedRevision$".split()[1],
+    kind = "program",
+    description = (
+        'Adds actions to control the famous '
+        '<a href="http://www.inmatrix.com/">Zoom Player</a>.'
+        '\n\n<p>'
+        '<b>Notice:</b><br>'
+        'To make it work, you have to enable TCP control in Zoom Player. '
+        'Either enable it in the options of Zoom Player under:'
+        '<p>'
+        '<i>Option/Setup => Values & Tools => Interface => Enable External '
+        'TCP Control</i>'
+        '<p>'
+        'or call the executable with the option <i>/TCP:[port]</i>'
+        '<p>'
+        '<b>Hint:</b><br>'
+        'Disable scroll acceleration in Zoom Player. Otherweise scrolling in '
+        'navigators might be jumpy if you use autorepeat in EventGhost (which '
+        'has a more sophisticated scroll acceleration). You find the setting '
+        'in Zoom Player under:<br>'
+        '<i>Option/Setup => OSD => Navigators => Settings => Disable Scroll '
+        'Acceleration</i>'
+    ),
     icon = (
         "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACYklEQVR42o2TX2hSYRTA"
         "j8vrjSHln0J9EIyVTFMhKrS5Wo4KtmKMag8tF0S+2INEFAXlNHzuxWD24Esog1qtHiJ7"
@@ -38,7 +63,8 @@ sophisticated scroll acceleration). You find the setting in Zoom Player under:<b
         "ufyq2WzWy2QyKJfLGyS8lvPoQQhOtgn5xbUpRomFk+haJeFw+HCroNuos91sQ8lwUyIQ"
         "CCAWi72NRCLD/xJ0klxhg/jQ2Lfx5X8ErRIpsp17D8vIyh8RDvE1Ol5jegAAAABJRU5E"
         "rkJggg=="
-    )
+    ),
+)
 
 # ===================================================================
 # ZoomPlayer TCP/IP Interface
@@ -241,33 +267,10 @@ for example: "5110 exSetAR,1".
 import asynchat
 import socket
 import asyncore
-import time
 import threading
 import new
 import wx
-from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
-
-
-class MyCheckListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
-    def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
-        CheckListCtrlMixin.__init__(self)
-        ListCtrlAutoWidthMixin.__init__(self)
                 
-
-displayList = (
-('timeline', 'timeline', 'events with the current position as payload (produced every second)'),
-('osd', 'OSD', 'triggered everytime the ZP OnScreenMenu pops up or disappears'),
-('subtitles', 'subtitles', 'basic subtitle information'),
-('subtitles2', 'subtitles complete', 'all remaining subtitle information'),
-('audio', 'audio', 'basic information about the current audio track'),
-('audio2', 'audio complete', 'all remaining audio track information'),
-('states', 'states', 'events about the current Play State (closed, stopped, paused or playing)'),
-('mode', 'play mode', 'event with the current mode (audio, DVD, media)'),
-('dvdar', 'DVD aspect ratio', 'events about the current aspect ratio of the DVD'),
-('navs', 'navigators', 'triggerd everytime a navigator is opened or closed'),
-('remaining', 'remaining', 'all the remaing events. Event names are just numbers.')
-) 
 
 fnList = (
 ('fnPlay', '<b>All:</b> Starts playback and toggles between Play & Pause states.'),
@@ -502,10 +505,17 @@ nvList = (
 ('KeyEscape', 'Navigational Control Escape', '27'),
 )
 
+
+        
    
-class ZoomPlayer_Session(asynchat.async_chat):
-   
-    def __init__ (self, handler, address):
+class ZoomPlayerSession(asynchat.async_chat):
+    """
+    Handles a Zoom Player TCP/IP session.
+    """
+    
+    def __init__ (self, plugin, address):
+        self.plugin = plugin
+
         # Call constructor of the parent class
         asynchat.async_chat.__init__(self)
 
@@ -514,7 +524,8 @@ class ZoomPlayer_Session(asynchat.async_chat):
 
         # Initialize input data buffer
         self.buffer = ''
-        self.handler = handler
+        
+        # create and connect a socket
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.settimeout(1.0)
         try:
@@ -524,97 +535,118 @@ class ZoomPlayer_Session(asynchat.async_chat):
 
 
     def handle_connect(self):
-        # connection succeeded
-        self.handler.TriggerEvent("Connected")
+        """
+        Called when the active opener's socket actually makes a connection. 
+        """
+        self.plugin.TriggerEvent("Connected")
          
        
     def handle_expt(self):
         # connection failed
-        self.handler.dispatcher_running = False
-        self.handler.TriggerEvent("NoConnection")
+        self.plugin.isSessionRunning = False
+        self.plugin.TriggerEvent("NoConnection")
         self.close()
 
 
     def handle_close(self):
-        # connection closed
-        self.handler.dispatcher_running = False
-        self.handler.TriggerEvent("ConnectionLost")
+        """
+        Called when the channel is closed.
+        """
+        self.plugin.isSessionRunning = False
+        self.plugin.TriggerEvent("ConnectionLost")
         self.close()
 
 
     def collect_incoming_data(self, data):
-        # received a chunk of incoming data
+        """
+        Called with data holding an arbitrary amount of received data.
+        """
         self.buffer = self.buffer + data
 
 
     def found_terminator(self):
-        self.handler.ValueUpdate(self.buffer)
+        """
+        Called when the incoming data stream matches the termination 
+        condition set by set_terminator.
+        """
+        # call the plugins handler method
+        self.plugin.ValueUpdate(self.buffer)
+        
+        # reset the buffer
         self.buffer = ''
          
+         
+         
+class NvAction(eg.ActionClass):
+    
+    def __call__(self):
+        self.plugin.DoCommand("5120 " + self.value)
        
-
+       
+       
+class FnAction(eg.ActionClass):
+    
+    def __call__(self):
+        self.plugin.DoCommand("5100 " + self.value)
+       
+       
+       
+class ExAction(eg.ActionWithStringParameter):
+    
+    def __call__(self, param):
+        self.plugin.DoCommand("5110 " + self.value + "," + param)
+                
+       
+       
+       
 class ZoomPlayer(eg.PluginClass):
     canMultiLoad = True
    
     def __init__(self):
         self.host = "localhost"
         self.port = 4769
-        self.dispatcher_running = False
+        self.isSessionRunning = False
         self.timeline = ""
         self.waitStr = None
         self.waitFlag = threading.Event()
         self.PlayState = -1
         self.lastMessage = {}
-        self.lastSubtitleNo = 0
+        self.lastSubtitleNum = 0
         self.lastSubtitlesEnabled = False
-        self.lastAudioTrackNo = 0
+        self.lastAudioTrackNum = 0
        
-        subGroup = self.AddGroup('Navigational Commands')
-       
-        def returnHandler(value):
-            def handler(self):
-                self.plugin.DoCommand(value)
-            return handler
-       
+        group = self.AddGroup('Navigational Commands')
         for className, descr, scancode in nvList:
-            class Handler(eg.ActionClass):
-                name = descr
-                description = descr
-                __call__ = returnHandler("5120 " + str(scancode))
-            Handler.__name__ = className
-            subGroup.AddAction(Handler)
+            clsAttributes = dict(name=descr, value=scancode)
+            cls = new.classobj(className, (NvAction,), clsAttributes)
+            group.AddAction(cls)
 
-        subGroup = self.AddGroup('Regular Functions')
+        group = self.AddGroup('Regular Functions')
         for className, descr in fnList:
-            class Handler(eg.ActionClass):
-                name = className[2:]
-                description = descr
-                __call__ = returnHandler("5100 " + className)
-            Handler.__name__ = className
-            action = subGroup.AddAction(Handler)
+            clsAttributes = dict(
+                name=className[2:], 
+                description=descr, 
+                value=className
+            )
+            cls = new.classobj(className, (FnAction,), clsAttributes)
+            action = group.AddAction(cls)
+
+            # TODO: is this really needed anymore?
             setattr(self, className[2:], action)
 
-        def returnExecute(value):
-            def __call__(self, value2):
-                self.plugin.DoCommand(value + value2)
-            return __call__
-       
-        def returnGetLabel(value):
-            def GetLabel(self, value2=None):
-                return value + (value2 or '')
-            return GetLabel
-       
-        subGroup = self.AddGroup('Extended Functions')
-        for className, descr in exList:
-            shortDoc = descr.splitlines()[0].strip()
-            class Handler(eg.ActionWithStringParameter):
-                name = shortDoc
-                description = descr
-                __call__ = returnExecute("5110 " + className + ",")
-                GetLabel = returnGetLabel(shortDoc + ": ")   
-            Handler.__name__ = className
-            action = subGroup.AddAction(Handler)
+        group = self.AddGroup('Extended Functions')
+        for className, descr in exList:           
+            clsAttributes = dict(
+                name=descr.splitlines()[0].strip(), 
+                description=descr, 
+                value=className
+            )
+            cls = new.classobj(className, (ExAction,), clsAttributes)
+            action = group.AddAction(cls)
+            
+            # TODO: is this really needed anymore?
             setattr(self, className[2:], action)
+            
         self.AddAction(self.MyCommand)
 
 
@@ -634,14 +666,6 @@ class ZoomPlayer(eg.PluginClass):
             self.zpEvents = self.zpEvents1
         
     
-    def __stop__(self):
-        pass
-
-
-    def __close__(self):
-        pass
-   
-
     zpEvents1 = {
         "1201": "OSDClosed",
         "1300": {
@@ -805,28 +829,28 @@ class ZoomPlayer(eg.PluginClass):
             else:
                 self.PrintError("unknown State Change")
         elif header == "1600":
-            self.lastAudioTrackNo = int(state)
+            self.lastAudioTrackNum = int(state)
             self.TriggerEvent("CurrentAudioTrack", int(state))
         elif header == "1601":
             self.TriggerEvent("AudioTrackCount", int(state))
         elif header == "1602":
-            no = int(state[0:3])
+            num = int(state[0:3])
             text = state[4:]
-            self.TriggerEvent("AudioTrackName", (no, text))
-            if no == self.lastAudioTrackNo:
+            self.TriggerEvent("AudioTrackName", (num, text))
+            if num == self.lastAudioTrackNum:
                 self.TriggerEvent("CurrentAudioTrackName", text)
         elif header == "1700":
-            self.lastSubtitleNo = int(state)
+            self.lastSubtitleNum = int(state)
             self.TriggerEvent("CurrentSubtitle", int(state))
         elif header == "1701":
             self.TriggerEvent("SubtitleCount", int(state))
         elif header == "1702":
-            no = int(state[0:3])
+            num = int(state[0:3])
             text = state[4:]
-            self.TriggerEvent("SubtitleName", (no, text))
+            self.TriggerEvent("SubtitleName", (num, text))
             if (
                 self.lastSubtitlesEnabled 
-                and no == self.lastSubtitleNo 
+                and num == self.lastSubtitleNum 
             ):
                 self.TriggerEvent("CurrentSubtitleName", text)
         elif header == "1704":
@@ -840,22 +864,19 @@ class ZoomPlayer(eg.PluginClass):
             self.TriggerEvent(header, [state])
 
 
-    def push(self, data):
-        if not self.dispatcher_running:
-            self.dispatcher = ZoomPlayer_Session(self, (self.host, self.port))
-            self.dispatcher_running = True
-        try:
-            self.dispatcher.sendall(data)
-        except:
-            self.dispatcher_running = False
-            self.TriggerEvent('close')
-            self.dispatcher.close()
-
-
+    @eg.LogIt
     def DoCommand(self, cmdstr):
         self.waitFlag.clear()
         self.waitStr = cmdstr
-        self.push(cmdstr + "\r\n")
+        if not self.isSessionRunning:
+            self.session = ZoomPlayerSession(self, (self.host, self.port))
+            self.isSessionRunning = True
+        try:
+            self.session.sendall(cmdstr + "\r\n")
+        except:
+            self.isSessionRunning = False
+            self.TriggerEvent('close')
+            self.session.close()
         self.waitFlag.wait(1.0)
         self.waitStr = None
         self.waitFlag.set()
@@ -898,5 +919,9 @@ class ZoomPlayer(eg.PluginClass):
     
     
     class MyCommand(eg.ActionWithStringParameter):
+        name = "Raw Command"
+        
         def __call__(self, cmd):
             self.plugin.DoCommand(cmd)
+            
+            

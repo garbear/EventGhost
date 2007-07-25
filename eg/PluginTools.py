@@ -1,10 +1,32 @@
-from os.path import abspath, exists
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
+
+from os.path import abspath, exists, join, isdir
 from base64 import b64decode
 from cStringIO import StringIO
 
 import sys
+import os
 import copy
-import imp
 import types
 
 import Image
@@ -12,6 +34,8 @@ import wx
 import eg
 from eg.IconTools import PilToBitmap, ICON_IDX_PLUGIN
 from Utils import SetClass
+from PluginMetaClass import PluginMetaClass
+from ActionMetaClass import ActionMetaClass
 
 
 WX_ICON_PLUGIN = wx.EmptyIcon()
@@ -20,14 +44,21 @@ WX_ICON_PLUGIN.CopyFromBitmap(
 )
 
 
-sys.modules["Plugin"] = imp.new_module("Plugin")
 
-def MyImport(name, fd, pathname):
-    module = types.ModuleType(name)
-    module.__dict__["eg"] = eg
-    module.__dict__["__file__"] = pathname
-    exec fd in module.__dict__
+def ImportPlugin(pluginDir):
+    moduleName = "pluginImport." + pluginDir
+    if moduleName in sys.modules:
+        return sys.modules[moduleName]
+    modulePath = join(eg.PLUGIN_DIR, pluginDir)
+    ActionMetaClass.allActionClasses = []
+    sys.path.insert(0, modulePath)
+    try:
+        module = __import__(moduleName, None, None, [''])
+    finally:
+        del sys.path[0]
+    module.__allActionClasses__ = ActionMetaClass.allActionClasses
     return module
+
     
     
 class PluginInfoBase(object):
@@ -60,7 +91,7 @@ class PluginInfoBase(object):
     
     # kind gives a hint in which group the plugin should be shown in
     # the AddPluginDialog
-    kind = None
+    kind = "other"
     
     # icon might be an instance of a PIL icon, that the plugin developer
     # has supplied
@@ -81,39 +112,29 @@ class PluginInfoBase(object):
     originalText = None
     isStarted = False
     label = None
+    treeItem = None
+    canMultiLoad = False
+    
         
     @classmethod
     def LoadModule(pluginInfo):
-        pathname = pluginInfo.path + "__init__.py"
+        pathname = join(pluginInfo.path, "__init__.py")
         if not exists(pathname):
             eg.PrintError("File %s does not exist" % pathname)
             return
-        fp = file(pathname, "U")
-        #fp = file(pathname, "r")
-        sys.path.insert(0, abspath(pluginInfo.path))
-        eg.SetAttr("_lastDefinedPluginClass", None)
-        eg.SetAttr("_lastDefinedPluginClassInfo", pluginInfo)
         try:
-            try:
-                module = imp.load_module(
-                    "Plugin." + pluginInfo.pluginName, 
-                    fp, 
-                    abspath(pathname), 
-                    ('.py', 'U', 1)
-                )
-                #module = MyImport("Plugin." + pluginInfo.pluginName, fp, pathname)
-            finally:
-                fp.close()
-                del sys.path[0]
+            module = ImportPlugin(pluginInfo.pluginName)
         except:
             eg.PrintTraceback(
                 "Error while loading plugin-file %s." % pluginInfo.path,
                 1
             )
             return
-        pluginCls = eg._lastDefinedPluginClass
+        pluginCls = module.__pluginCls__
         pluginInfo.module = module
         pluginInfo.pluginCls = pluginCls
+        if getattr(pluginCls, "canMultiLoad", False):
+            pluginInfo.canMultiLoad = True
         text = pluginCls.text
         if text is None:
             class text:
@@ -136,14 +157,16 @@ class PluginInfoBase(object):
     
     
     @classmethod
-    def CreatePluginInstance(pluginInfo, evalName):
+    def CreatePluginInstance(pluginInfo, evalName, treeItem):
+        info = pluginInfo()
+        info.treeItem = treeItem
         pluginCls = pluginInfo.pluginCls
         try:
             plugin = pluginCls.__new__(pluginCls)
         except:
             eg.PrintTraceback()
             return None
-        plugin.info = info = pluginInfo()
+        plugin.info = info
         class _Exception(eg.Exception):
             pass
         plugin.Exception = _Exception
@@ -175,7 +198,7 @@ class PluginInfoBase(object):
                     pass
         else:
             pluginInfo.instances.append(plugin.info)
-        eg.SetAttr("_lastDefinedPluginClassInfo", pluginInfo)
+        ActionMetaClass.allActionClasses = pluginInfo.module.__allActionClasses__
         try:
             plugin.__init__()
             info.initFailed = False
@@ -183,7 +206,7 @@ class PluginInfoBase(object):
             eg.PrintError(e.message)
         except:
             eg.PrintTraceback()
-        
+        pluginInfo.label = plugin
         return plugin
         
         
@@ -197,28 +220,6 @@ class PluginInfoBase(object):
             return WX_ICON_PLUGIN
      
 
-
-class PluginInfoException(Exception):
-    pass
-
-
-class PluginInfoMetaClass(type):
-    lastPluginInfo = None
-    raiseOnPluginInfoLoad = False
-    
-    def __init__(cls, name, bases, dictionary):
-        PluginInfoMetaClass.__init__ = PluginInfoMetaClass.init2
-        
-    def init2(cls, name, bases, dictionary):
-        if PluginInfoMetaClass.raiseOnPluginInfoLoad:
-            PluginInfoMetaClass.lastPluginInfo = cls
-            raise PluginInfoException
-    
-    
-class PluginInfo(object):
-    __metaclass__ = PluginInfoMetaClass
-    
-
         
 def GetPluginInfo(pluginName):
     # first look, if we already have cached this plugin class
@@ -226,37 +227,13 @@ def GetPluginInfo(pluginName):
     if info is not None:
         return info
     
-    # read in the __info__ of the plugin
-    infoDict = {"eg": eg}
-    pluginPath = "plugins/" + pluginName
-    if (
-        not exists(pluginPath + "/__info__.py") 
-        and not exists("eg/CorePlugins/" + pluginName + "/__info__.py")
-    ):
-        PluginInfoMetaClass.raiseOnPluginInfoLoad = True
-        try:
-            try:
-                execfile(pluginPath + "/__init__.py", infoDict)
-            finally:
-                PluginInfoMetaClass.raiseOnPluginInfoLoad = False
-        except PluginInfoException:
-            infoDict = PluginInfoMetaClass.lastPluginInfo.__dict__
-        except:
-            eg.PrintError('Can\'t read __init__.py for plugin "%s"' % pluginName)
-            return None
-    else:
-        try:
-            execfile(pluginPath + "/__info__.py", infoDict)
-        except:
-            pluginPath = "eg/CorePlugins/" + pluginName
-            try:
-                execfile(pluginPath + "/__info__.py", infoDict)
-            except:
-                eg.PrintError(
-                    'Can\'t read __info__.py for plugin "%s"' % pluginName
-                )
-                return None
+    if pluginName not in eg.pluginDatabase.database:
+        eg.PrintError(eg.text.Error.pluginNotFound % pluginName)
+        return None
     
+    infoDict = eg.pluginDatabase.GetPluginInfo(pluginName).__dict__
+    pluginPath = join("plugins", pluginName)
+        
     # create a new sublclass of PluginInfo for this plugin class
     class info(PluginInfoBase):
         name = infoDict.get("name", PluginInfoBase.name)
@@ -265,6 +242,7 @@ def GetPluginInfo(pluginName):
         version = infoDict.get("version", PluginInfoBase.version)
         kind = infoDict.get("kind", PluginInfoBase.kind)
         api = infoDict.get("api", PluginInfoBase.api)
+        canMultiLoad = infoDict.get("canMultiLoad", PluginInfoBase.canMultiLoad)
         path = pluginPath + "/"
     info.pluginName = pluginName
     info.englishName = info.name
@@ -278,38 +256,39 @@ def GetPluginInfo(pluginName):
     info.textCls = textCls
     
     # get the icon if any
-    if "icon" in infoDict:
-        data = b64decode(infoDict["icon"])
-        fd = StringIO(data)
+    if "icon" in infoDict and infoDict["icon"] is not None:
+        fd = StringIO(b64decode(infoDict["icon"]))
         info.icon = Image.open(fd).convert("RGBA")
         fd.close()
-        
     else:
-        try:
-            info.icon = Image.open(pluginPath + "/icon.png").convert("RGBA")
-        except:
-            pass
+        iconPath = join(pluginPath, "icon.png")
+        if exists(iconPath):
+            #try:
+            info.icon = Image.open(join(pluginPath, "icon.png")).convert("RGBA")
+        #except:
+        #    pass
     
     info.actionClassList = []
     return info
 
 
-@eg.logit()
-def OpenPlugin(pluginName, evalName=None):
-    #from time import clock
-    #startTime = clock()
+@eg.LogIt
+def OpenPlugin(pluginName, evalName, args, treeItem=None):
     info = GetPluginInfo(pluginName)
     if info is None:
         return None
     if info.pluginCls is None:
         if not info.LoadModule():
             return None
-    plugin = info.CreatePluginInstance(evalName)
-    #eg.notice(clock() - startTime)
+    plugin = info.CreatePluginInstance(evalName, treeItem)
+    try:
+        plugin.info.label = plugin.GetLabel(*args)
+    except:
+        plugin.info.label = plugin.info.name
     return plugin
 
         
-@eg.logit()
+@eg.LogIt
 def ClosePlugin(plugin):
     def _delActionListItems(actionList):
         if actionList is not None:
@@ -337,4 +316,23 @@ def ClosePlugin(plugin):
     del plugin
 
 
+gPluginInfoList = None
+
+def GetPluginInfoList():
+    """
+    Get a list of all PluginInfo for all plugins in the plugin directory
+    """
+    global gPluginInfoList
+    if gPluginInfoList is not None:
+        return gPluginInfoList
+    
+    gPluginInfoList = []
+    for filename in os.listdir("plugins"):
+        if filename.startswith(".") or filename.startswith("_"):
+            continue
+        if not isdir(join("plugins", filename)):
+            continue
+        info = eg.GetPluginInfo(filename)
+        gPluginInfoList.append(info)
+    return gPluginInfoList
 

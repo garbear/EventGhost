@@ -1,13 +1,33 @@
+# This file is part of EventGhost.
+# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# 
+# EventGhost is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# EventGhost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with EventGhost; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
 
 from xml.sax.saxutils import quoteattr, escape
-import weakref
 from cStringIO import StringIO
 import xml.etree.cElementTree as ElementTree
 
 import wx
 import eg
-from TreeLink import TreeLink
-from TreePosition import TreePosition
+from TreeItems.TreeLink import TreeLink
+from TreeItems.TreePosition import TreePosition
 
 
 class TreeItem(object):
@@ -17,12 +37,17 @@ class TreeItem(object):
     # isEnabled
     # iconIndex
     # xmlId
-    # __ weakref__
     
+    xmlTag = "Item"
     dependants = None
     childs = ()
-    canExecute = False
-            
+    isDeactivatable = True
+    isConfigurable = False
+    isRenameable = True            
+    isExecutable = False
+    # we need this so weakrefs can find out if the item actually lives
+    isDeleted = False 
+
         
     def GetFullXml(self):
         TreeLink.StartUndo()
@@ -32,16 +57,18 @@ class TreeItem(object):
     
         
     @classmethod
+    #@eg.AssertNotMainThread
     def Create(cls, parent, pos, text="", **kwargs):
         node = ElementTree.Element(cls.xmlTag)
         node.text = text
         for k, v in kwargs.items():
             node.attrib[k] = v
-        self = cls(parent, node)
+        self = eg.actionThread.CallWait(cls, parent, node)
         parent.AddChild(self, pos)
         return self
         
         
+    #@eg.AssertNotActionThread
     def __init__(self, parent, node):
         self.parent = parent
         self.id = None
@@ -51,10 +78,18 @@ class TreeItem(object):
             attrib[key.lower()] = value
         get = attrib.get
         self.name = get("name", "")
+        if type(self.name) == type(""):
+            self.name = unicode(self.name, "utf8")
         self.isEnabled = not get('enabled') == "False"
         self.xmlId = TreeLink.NewXmlId(int(get('id', -1)), self)
 
         
+    if eg.debugLevel:
+        @eg.LogIt
+        def __del__(self):
+            pass
+    
+    
     def RestoreState(self):
         pass
     
@@ -80,7 +115,7 @@ class TreeItem(object):
         write("<")
         write(self.xmlTag)
         for key, value in attr:
-            write(' %s=%s' % (key, quoteattr(str(value)).encode("UTF-8")))
+            write(' %s=%s' % (key, quoteattr(unicode(value)).encode("UTF-8")))
         write(">")
         if pretty:
             new_indent_str = indent_str + "    "
@@ -105,7 +140,6 @@ class TreeItem(object):
         
         
     def CreateTreeItem(self, tree, parentId):
-        #eg.whoami()
         id = tree.AppendItem(
             parentId,
             self.GetLabel(), 
@@ -118,8 +152,8 @@ class TreeItem(object):
         return id
         
     
+    @eg.LogIt
     def CreateTreeItemAt(self, tree, parentId, pos):
-        eg.whoami()
         if pos == -1 or pos >= len(self.parent.childs):
             return TreeItem.CreateTreeItem(self, tree, parentId)
         else:
@@ -136,25 +170,32 @@ class TreeItem(object):
             return id
     
     
-    def DeleteTreeItem(self, tree):
-        if self.id is not None:
-            tree.Delete(self.id)
-            self.id = None
+    def EnsureValidId(self, tree):
+        parent = self.parent
+        parent.EnsureValidId(tree)
+        if not tree.IsExpanded(parent.id):
+            tree.Expand(parent.id)
+            
         
-        
+    def HasValidId(self):
+        if not self.tree:
+            return False
+        return self._HasValidId()
+    
+    
+    def _HasValidId(self):
+        parent = self.parent
+        if not parent._HasValidId():
+            return False
+        return self.tree.IsExpanded(parent.id)
+    
+    
+    @eg.AssertNotMainThread
     def Select(self):
         tree = self.tree
-        if self.id is None:
-            root = self.root
-            stack = []
-            item = self.parent
-            while item is not root:
-                stack.append(item)
-                item = item.parent
-            for item in reversed(stack):
-                if not tree.IsExpanded(item.id):
-                    tree.Expand(item.id)
-        tree.SelectItem(self.id)
+        if tree:
+            self.EnsureValidId(tree)
+            tree.SelectItem(self.id)
         
         
     def GetPositionData(self):
@@ -164,13 +205,15 @@ class TreeItem(object):
         return TreePosition(self)
     
     
+    @eg.AssertNotMainThread
     def Delete(self):
-        self._Delete()
-        if self.id:
+        if self.HasValidId():
             self.tree.Delete(self.id)
+        self._Delete()
 
 
     def _Delete(self):
+        self.isDeleted = True
         if self.dependants is not None:
             TreeLink.RemoveDependants(self)
         if self.xmlId in TreeLink.sessionId2target:
@@ -271,7 +314,7 @@ class TreeItem(object):
         try:
             dataObj = wx.CustomDataObject("DragEventItem")
             if wx.TheClipboard.GetData(dataObj):
-                if self.DropTest(EventItem):
+                if self.DropTest(eg.EventItem):
                     return True
                 
             dataObj = wx.TextDataObject()
@@ -300,16 +343,13 @@ class TreeItem(object):
         return True
     
     
-    def CanDisable(self):
-        return True
-    
-    
     def GetLabel(self):
         return self.name
     
     
+    @eg.AssertNotMainThread
+    @eg.LogIt
     def RenameTo(self, newName):
-        eg.whoami()
         self.name = newName
         self.tree.SetItemText(self.id, newName)
         wx.CallAfter(self.Refresh)
@@ -326,8 +366,9 @@ class TreeItem(object):
         pass
     
     
+    @eg.AssertNotMainThread
+    @eg.LogIt
     def MoveItemTo(self, newParentItem, pos):
-        eg.whoami()
         tree = self.tree
         tree.Freeze()
         try:
@@ -344,9 +385,10 @@ class TreeItem(object):
         return id
             
     
+    @eg.AssertNotMainThread
     def Enable(self, enable=True):
         self.isEnabled = enable
-        if self.id is not None:
+        if self.HasValidId():
             self.tree.SetItemImage(
                 self.id,
                 self.iconIndex + (not enable), 
@@ -356,14 +398,6 @@ class TreeItem(object):
                 self.document.selectionEvent.Fire(self)
                 
 
-    def IsEditable(self):
-        return True
-    
-    
-    def IsConfigurable(self):
-        return False
-    
-    
     def Execute(self):
         return None, None
     
@@ -377,10 +411,6 @@ class TreeItem(object):
             return self.childs.index(child)
         except ValueError:
             return None
-    
-    
-    def GetCount(self, count=0):
-        return count + 1
     
     
     def GetPath(self):
@@ -419,8 +449,7 @@ class TreeItem(object):
         
         
     def DoPrint(self, text):
-        wRef = weakref.ref(self)
-        eg.logCtrl.DoPrint(text, self.iconIndex, wRef)
+        eg.log.DoItemPrint(text, self.iconIndex, self)
         
     
     def DropTest(self, cls):
@@ -476,5 +505,7 @@ class TreeItem(object):
         return self
     
     
-    def __del__(self):
-        eg.whoami()
+    if eg.debugLevel:
+        @eg.LogIt
+        def __del__(self):
+            pass
