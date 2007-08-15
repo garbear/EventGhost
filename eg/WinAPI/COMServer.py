@@ -65,7 +65,11 @@ except pywintypes.error, data:
         raise
 sys.coinit_flags = 2
 from win32com.server import factory
-__factory_infos = factory.RegisterClassFactories([EventGhostCom._reg_clsid_])
+try:
+    __factory_infos = factory.RegisterClassFactories([EventGhostCom._reg_clsid_])
+except:
+    __factory_infos = []
+    eg.PrintError("RegisterClassFactories failed!")
 #import win32api
 #pythoncom.EnableQuitMessage(win32api.GetCurrentThreadId())    
 pythoncom.CoResumeClassObjects()
