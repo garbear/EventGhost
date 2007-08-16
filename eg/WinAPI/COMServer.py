@@ -74,7 +74,10 @@ except:
 #pythoncom.EnableQuitMessage(win32api.GetCurrentThreadId())    
 pythoncom.CoResumeClassObjects()
 
-e = win32com.client.Dispatch("EventGhost")       
+try:
+    e = win32com.client.Dispatch("EventGhost")   
+except:
+    eg.PrintError("Unable to establish COM disptach!")    
 
 
 def DeInit():
