@@ -151,6 +151,9 @@ class EventGhost(object):
             self.DebugNote("Version:", self.versionStr)
             
 
+        # redirect all wxPython error messages to stderr
+        wx.LogStderr()
+        
         from ConfigData import LoadConfig, SaveConfig
         self.config = config = LoadConfig()
         self.SaveConfig = SaveConfig
