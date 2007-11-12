@@ -154,8 +154,9 @@ class EventGhost(object):
         # redirect all wxPython error messages to our log
         class MyLog(wx.PyLog):
             def DoLog(self2, level, msg, timestamp):
-                if level < 6:
-                    self.log.PrintError("Error%d: %s" % (level, msg))
+                if (level < 6) and not debugLevel:
+                    return
+                self.log.PrintError("Error%d: %s" % (level, msg))
         wx.Log.SetActiveTarget(MyLog())
 
         from ConfigData import LoadConfig, SaveConfig
