@@ -329,7 +329,7 @@ class AboutDialog(eg.Dialog):
         notebook.AddPage(Panel3(notebook), Text.tabLicense)
         notebook.AddPage(Panel4(notebook), Text.tabSystemInfo)
         if eg.debugLevel:
-            notebook.AddPage(ChangeLogPanel(notebook), Text.tabChangelog)
+            notebook.AddPage(ChangelogPanel(notebook), Text.tabChangelog)
 
         okButton = wx.Button(self, wx.ID_OK, eg.text.General.ok)
         okButton.SetDefault()
