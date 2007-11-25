@@ -282,8 +282,9 @@ class ChangelogPanel(Panel2):
     
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
-        fd = open("CHANGELOG.TXT")
-        if not fd:
+        try:
+            fd = open("CHANGELOG.TXT")
+        except:
             return
         res = ["<TABLE>"]
         headerTemplate = (
