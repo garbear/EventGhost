@@ -582,6 +582,7 @@ class MainDialog(wx.Dialog):
         global includeNoIncludes
         includeNoIncludes = self.includeNoIncludesCB.GetValue()
         filename = MakeInstaller(isUpdate, makeLib, makeSourceArchive, commitSvn)
+        print filename
         if self.uploadCB.GetValue():
             UploadFile(filename, self.url)
         app.ExitMainLoop()
