@@ -306,6 +306,7 @@ class Lirc(eg.RawReceiverPlugin):
     text = Text
 
     def __init__(self):
+        eg.RawReceiverPlugin.__init__(self)
         self.AddAction(self.Send)
 
     def __start__(self, host, port, onlyfirst, addremote, addrepeat, ignoretime, timeout):
