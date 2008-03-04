@@ -1,3 +1,4 @@
+Version 0.3.6.1285 (03/04/2008)
 + Sound Mixer Ex plugin from Dexter.
 + Marantz Serial plugin from Dexter.
 + X10 CM15A plugin from Dean Owens.

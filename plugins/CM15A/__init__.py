@@ -28,15 +28,15 @@
 # - added a separate thread to handle X10 notifications
 #
 #
-# $LastChangedDate: 2007-12-26 18:13:49 +0100 (Mi, 26 Dez 2007) $
-# $LastChangedRevision: 346 $
-# $LastChangedBy: bitmonster $
+# $LastChangedDate$
+# $LastChangedRevision$
+# $LastChangedBy$
 
 
 eg.RegisterPlugin(
     name = "X10 CM15A",
     author = "Dean Owens",
-    version = "0.2." + "$LastChangedRevision: 346 $".split()[1],
+    version = "0.2." + "$LastChangedRevision$".split()[1],
     kind = "remote",
     description = (
         'Hardware plugin for the <a href="http://www.x10.com/activehomepro/sneakpreview.html">'

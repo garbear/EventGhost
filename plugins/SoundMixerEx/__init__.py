@@ -1,7 +1,7 @@
 eg.RegisterPlugin(
     name = "Sound Mixer Ex",
     author = "Dexter",
-    version = "1.0." + "$LastChangedRevision: 304 $".split()[1],
+    version = "1.0." + "$LastChangedRevision$".split()[1],
     description = (
         "This plugin allows you to set virtually any control available on your soundcard."
     ),
