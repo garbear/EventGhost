@@ -556,10 +556,11 @@ class MainDialog(wx.Dialog):
             setattr(Options, name, getattr(self.Ctrls, name).GetValue())
         if Options.createImports:
             import MakeImports
+            MakeImports.Main()
         filename = MakeInstaller()
-        print filename
         if Options.upload:
             UploadFile(filename, self.url)
+        print filename
         app.ExitMainLoop()
         
         
