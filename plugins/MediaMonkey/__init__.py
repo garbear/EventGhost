@@ -1,4 +1,4 @@
-version="0.1.5"
+version="0.1.6"
 
 # Plugins/MediaMonkey/__init__.py
 #
@@ -20,7 +20,7 @@ version="0.1.5"
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#Last change: 2008-03-17 20:57
+#Last change: 2008-03-18 10:59
 
 eg.RegisterPlugin(
     name = "MediaMonkey",
@@ -1622,7 +1622,7 @@ class LoadPlaylistByFilter(eg.ActionClass):
         noFound = "no song found"
         asc = "ascending"
         desc = "descending"
-        order1 = "Songs found are sorted"
+        order1 = "Songs found are sorted in"
         order2 = "order by:"
         limit1 = "Select only the first"
         limit2 = "entry"
