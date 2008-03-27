@@ -17,6 +17,19 @@ eg.RegisterPlugin(
         
         <center><img src="tellstick.png" /></center>
     """,
+    icon = (
+        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAAZi"
+        "S0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9gDGxAtBidu"
+        "wgYAAAGjSURBVDjL7ZIxaxphAIbfqxIvcuoVDpJcliDoYikdJNBDCTWQIXQqJXTJlKF7"
+        "/4FLnTs4OARcpBJMliQki2QQpA6KioeQHNpioVG+Xr8e33lX8L7rFtIh0B+QZ3+f4eEF"
+        "HvkvJEkKFIvFrXa7/Wk0Go2Hw+GoUqnsAoDw0CgSiTwpFApZTdP2ZFl+Y1nWqiRJmEwm"
+        "yGQyYIz5zWbzwz+CWCwm5PN5LZvN7imK8lZVVbXVaqHX60EURSQSCaRSKYiiCEIIdF13"
+        "7wTRaDTWaDS68Xh8IxQKoV6vw/M8hMNhpNNpBAIBUEoxnU4xm81AKQWllAcBQHu5Kb0/"
+        "2H/3+9fPDddVIQgCcrkcFosFTNOEYRgghIBSCs45OOdwHKdvmuahcHpcOVpZUV4/leXl"
+        "dXUNnf4NlNV1MMZACIFlWeCcw/d9zOfzsW3b1U6nUy2Xy30ACH77+iP54vmz5RtjjD+O"
+        "B8di6N5277q4rnvLGDsaDAafa7VaixDi3+8WPLu43AktLV0mE0mq69fVk/PzL6+2tz9y"
+        "zr8bhlErlUpXtm17j2d+mL+2ksVgUYb12AAAAABJRU5ErkJggg=="
+    ),
 )
 
 TELLSTICK_TURNON       = 1
