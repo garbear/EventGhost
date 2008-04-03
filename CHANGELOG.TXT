@@ -1,3 +1,4 @@
+Version 0.3.6.1353 (04/03/2008)
 + Spanish translation from karl.
 + First version of a CyberLink PowerDVD plugin.
 + Some Internet shortcuts to the project get added to the Startmenu folder.
