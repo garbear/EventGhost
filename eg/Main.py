@@ -50,6 +50,7 @@ class args:
     debugLevel = 0
     translate = False
     configDir = None
+    install = False
     
     
 argv = [val.decode(encoding) for val in sys.argv]
@@ -73,7 +74,7 @@ while True:
     elif arg == '-install':
         import compileall
         compileall.compile_dir(mainDir)
-        sys.exit(0)
+        args.install = True
     elif arg == '-uninstall':
         for root, dirs, files in os.walk(mainDir):
             for name in files:
@@ -132,5 +133,6 @@ if (not args.allowMultiLoad) and (not args.translate):
 
 from Init import EventGhost
 eg = EventGhost(args)
-eg.app.MainLoop()
+if not args.install:
+    eg.app.MainLoop()
 ctypes.windll.kernel32.ExitProcess(0)
