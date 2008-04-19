@@ -1,7 +1,7 @@
 #
 # plugins/HauppaugeIR/__init__.py
 #
-# Copyright (C) 2005 Stefan Gollmer
+# Copyright (C) 2008 Stefan Gollmer
 #
 # This file is part of EventGhost.
 # 
@@ -332,7 +332,7 @@ class HauppaugeIRMessageReceiver(eg.ThreadWorker):
                         _winreg.HKEY_LOCAL_MACHINE, 
                         'SOFTWARE\hauppauge\IR', 
                         0, 
-                        _winreg.KEY_WRITE
+                        _winreg.KEY_WRITE | _winreg.KEY_READ
         )
 
         defaultPollTime = int( _winreg.QueryValueEx(regHandle, 'PollRate')[0] )
