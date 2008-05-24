@@ -72,7 +72,7 @@ class ActionThread(eg.ThreadWorker):
     def HandleAction(self, action):
         try:
             action()
-        except eg.PluginClass.Exception, e:
+        except eg.Plugin.Exception, e:
             eg.PrintError(e.message, source=e.obj.info.treeItem)
             e.obj.info.lastException = e
             e.obj.info.treeItem.SetErrorState()

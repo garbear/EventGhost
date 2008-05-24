@@ -24,7 +24,7 @@
 class Version:
     major = 0
     minor = 3
-    micro = 6
+    micro = 7
     releaselevel = 'beta'
     buildNum = 1427
     buildTime = 1211553715.95

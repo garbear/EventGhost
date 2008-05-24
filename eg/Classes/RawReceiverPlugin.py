@@ -22,11 +22,8 @@
 
 from threading import Timer
 
-eg._lastDefinedPluginClass = None
 
-
-
-class RawReceiverPlugin(eg.PluginClass):
+class RawReceiverPlugin(eg.Plugin):
     
     def __init__(self):
         self.mapTable = {}

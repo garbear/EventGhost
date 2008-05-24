@@ -22,13 +22,13 @@
 
 __docformat__ = 'reStructuredText'
 
-""" Definition of the abstract PluginClass. """
+""" Definition of the abstract Plugin class. """
 from types import ClassType
 from PluginMetaClass import PluginMetaClass
 AddAction = eg.ActionGroup.AddAction
         
        
-class PluginClass(object):
+class Plugin(object):
     """ 
     Base class of every EventGhost plugin written in Python 
     
@@ -166,8 +166,8 @@ class PluginClass(object):
         Add an action to the AddActionDialog of EventGhost for this plugin.
         
         :Parameters:
-          `action` : eg.ActionClass subclass
-            The ActionClass to add
+          `action` : eg.Action subclass
+            The Action to add
           `hidden` : bool
             If set to True, the action will not show up in the AddActionDialog
             but is otherwise fully functional.

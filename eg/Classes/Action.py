@@ -24,7 +24,7 @@ __docformat__ = 'reStructuredText'
 
 from types import ClassType
 
-class ActionClass(object):
+class Action(object):
     """ 
     Base class of every action of a EventGhost plugin written in Python 
     
@@ -32,12 +32,12 @@ class ActionClass(object):
     
     :cvar name:
         Set this to descriptive name in your class definition. 
-        It might get translated by PluginClass.AddAction() to the user's 
+        It might get translated by Plugin.AddAction() to the user's 
         language if a translation is found.
     
     :cvar description:
         Set this to descriptive description in your class definition. 
-        It might get translated by PluginClass.AddAction() to the user's 
+        It might get translated by Plugin.AddAction() to the user's 
         language if a translation is found.
     
      :cvar iconFile:
@@ -48,7 +48,7 @@ class ActionClass(object):
         Assign a class with text strings to this field to get them localised.
 
      :ivar plugin:      
-        This will be set from PluginClass.AddAction() for convenience, so every 
+        This will be set from Plugin.AddAction() for convenience, so every 
         action can access its own plugin instance through this member variable.
      
      :ivar info:      
@@ -75,7 +75,7 @@ class ActionClass(object):
         # This Compile call is only here to support calls of pre-compiled 
         # actions (see below) like PythonScript/PythonCommand actions. 
         # Normally all actions will overwrite this __call__ method completely.
-        if self.Compile.im_func != ActionClass.Compile.im_func:
+        if self.Compile.im_func != Action.Compile.im_func:
             self.Compile(*args)()
         else:
             raise NotImplementedError
@@ -138,7 +138,7 @@ class ActionClass(object):
         """
         Implementation of pre-compiled parameters.
 
-        An ActionClass will only override the "Compile" method, if it uses a 
+        An Action will only override the "Compile" method, if it uses a 
         special way to implement its action. An action receives a call to 
         Compile every time their parameters change (the user has reconfigured 
         the action) or in the moment the configuration file is loaded and an 

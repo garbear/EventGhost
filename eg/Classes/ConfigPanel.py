@@ -33,7 +33,7 @@ class ConfigDialog(eg.Dialog):
         self.showLine = showLine
         self.resizeable = resizeable
         
-        isPlugin = isinstance(obj, eg.PluginClass)
+        isPlugin = isinstance(obj, eg.Plugin)
         if isPlugin:
             title = eg.text.General.pluginLabel % obj.name
             flags = wx.EXPAND|wx.ALL|wx.ALIGN_CENTER

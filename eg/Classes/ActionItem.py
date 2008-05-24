@@ -88,7 +88,7 @@ class ActionItem(TreeItem):
         except:
             eg.PrintError("Can't find action: " + text)
             action = None
-        if action is None or not issubclass(action, eg.ActionClass):
+        if action is None or not issubclass(action, eg.Action):
             action = eg.plugins.EventGhost.PythonCommand
             argString = repr(text)
         self.executable = action()
@@ -185,7 +185,7 @@ class ActionItem(TreeItem):
         # if the Configure method of the executable is overriden, we assume
         # the item wants to be configured after creation
         im_func = self.executable.Configure.im_func
-        return im_func != eg.ActionClass.Configure.im_func
+        return im_func != eg.Action.Configure.im_func
     
     
     def IsConfigurable(self):

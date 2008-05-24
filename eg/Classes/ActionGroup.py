@@ -24,7 +24,7 @@ from types import ClassType
 
 from eg.Utils import SetClass
 
-ActionClass = eg.ActionClass
+Action = eg.Action
 
 
 class ActionInfo(object):
@@ -62,8 +62,8 @@ class ActionGroup(object):
         
 
     def AddAction(self, actionCls, clsName=None, name=None, description=None, value=None, hidden=False):
-        if not issubclass(actionCls, ActionClass):
-            raise Exception("Actions must be subclasses of eg.ActionClass")
+        if not issubclass(actionCls, Action):
+            raise Exception("Actions must be subclasses of eg.Action")
         if clsName is not None:
             actionCls = ClassType(
                 clsName,

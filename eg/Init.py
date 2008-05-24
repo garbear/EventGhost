@@ -61,6 +61,7 @@ class EventGhost(object):
         eg.startupArguments = args
         eg.debugLevel = args.debugLevel
         eg.systemEncoding = locale.getdefaultlocale()[1]
+        eg.folderPath = eg.FolderPath()
         eg.CallAfter = wx.CallAfter
         eg.APP_NAME = "EventGhost"
         eg.PLUGIN_DIR = os.path.abspath("plugins")
@@ -116,13 +117,18 @@ class EventGhost(object):
         eg.actionGroup = eg.Bunch()
         eg.actionGroup.items = []
         eg.buildNum = eg.Version.buildNum
-
+        eg.ActionClass = eg.Action
+        eg.PluginClass = eg.Plugin
+        eg.messageReceiver = eg.MessageReceiver()
+        
         # because some functions are only available if a wxApp instance
         # exists, we simply create it first
-        eg.app
+        eg.app = eg.App()
+        eg.config = eg.Config()
                 
         import eg.Icons
         
+        eg.log = eg.Log()
         eg.Print = self.log.Print
         eg.PrintError = self.log.PrintError
         eg.PrintNotice = self.log.PrintNotice
@@ -206,6 +212,14 @@ class EventGhost(object):
 
         import eg.WinApi.COMServer
         
+        eg.scheduler = eg.Scheduler()
+        eg.document = eg.Document()
+        eg.taskBarIcon = eg.TaskBarIcon()
+        eg.actionThread = eg.ActionThread()
+        eg.eventThread = eg.EventThread()
+        eg.pluginManager = eg.PluginManager()
+        eg.colour = eg.Colour()
+        
         self.scheduler.start()
         self.messageReceiver.Start()
 
@@ -245,17 +259,14 @@ class EventGhost(object):
 
             
     def __getattr__(self, name):
-        if name[0].islower():
-            modName = name[0].upper() + name[1:]
-            mod = __import__("eg.Singletons." + modName, fromlist=[modName])
-            singelton = getattr(mod, modName)()
-            self.__dict__[name] = singelton
-            return singelton
-            
         mod = __import__("eg.Classes." + name, globals(), locals(), [name], 0)
         attr = getattr(mod, name)
         self.__dict__[name] = attr
         return attr
+    
+    
+    def __delattr__(self, name):
+        eg.PrintError("Deletion of eg.%s is forbidden!" % name)
     
     
     def DeInit(self):

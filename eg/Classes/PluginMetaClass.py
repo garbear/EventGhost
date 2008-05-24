@@ -24,7 +24,7 @@ import sys
 
 class PluginMetaClass(type):
     """
-    The metaclass of PluginClass that allows us to monitor the definition of a
+    The metaclass of Plugin that allows us to monitor the definition of a
     new plugin.
     """
     lastCreatedCls = None
