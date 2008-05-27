@@ -103,7 +103,9 @@ class DrawingFrame(wx.Frame):
     
     def __init__(self, parent=None):
         wx.Frame.__init__(
-            self, parent, -1, style=wx.NO_BORDER|wx.FRAME_NO_TASKBAR|wx.CLIP_CHILDREN
+            self, 
+            parent,
+            style=wx.NO_BORDER|wx.FRAME_NO_TASKBAR|wx.CLIP_CHILDREN
         )
         self.drawing = None
         self.displayNum = 0
@@ -678,6 +680,7 @@ class Bars(TestPatternAction):
         makeDoubleBarsCtrl = panel.CheckBox(makeDoubleBars, text.makeDoubleBars)
         showNumbersCtrl = panel.CheckBox(showNumbers, text.showNumbers)
         fontCtrl = panel.FontSelectButton(fontStr)
+        
         panel.AddLine(text.orientation, orientationCtrl)
         panel.AddLine(text.firstColour, firstColourButton)
         panel.AddLine(text.lastColour, lastColourButton)
@@ -1002,6 +1005,7 @@ class Close(eg.ActionClass):
     
     def __call__(self):
         self.plugin.frame.Show(False)
+        self.plugin.TriggerEvent("Close")
         
         
         
