@@ -505,12 +505,16 @@ def MakeInstaller():
         from distutils.core import setup
         InstallPy2exePatch()
         RemoveDirectory(join(trunkDir, "lib"))
+        print "creating console exe"
         setup(**consoleOptions)
+        print "creating main exe"
         setup(**py2exeOptions)
+        print "copying DLLs"
         pythonDir = dirname(sys.executable)
         for dll in ROOT_DLLS:
             if not os.path.exists(join(trunkDir, dll)):
                 copy(join(pythonDir, dll), trunkDir)
+        print "done!"
                     
     installFiles = []
     if Options.createUpdate:
@@ -685,7 +689,9 @@ class MainDialog(wx.Dialog):
         config = ConfigParser.ConfigParser()
         # make ConfigParser case-sensitive
         config.optionxform = str
-        config.add_section("Settings")
+        config.read(join(toolsDir, "MakeInstaller.ini"))
+        if not config.has_section("Settings"):
+            config.add_section("Settings")
         for label, ident, value in OptionsList:
             value = getattr(Options, ident)
             config.set("Settings", ident, value)
@@ -719,7 +725,7 @@ class MainDialog(wx.Dialog):
             import MakeImports
             MakeImports.Main()
         filename = MakeInstaller()
-        if Options.upload:
+        if Options.upload and self.url:
             UploadFile(filename, self.url)
         print filename
         app.ExitMainLoop()
