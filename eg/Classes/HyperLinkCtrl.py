@@ -21,7 +21,7 @@
 # $LastChangedBy$
 
 import webbrowser
-import thread
+from threading import Thread
 
 from wx.lib.hyperlink import HyperLinkCtrl as wxHyperLinkCtrl
 
@@ -29,7 +29,8 @@ from wx.lib.hyperlink import HyperLinkCtrl as wxHyperLinkCtrl
 class HyperLinkCtrl(wxHyperLinkCtrl):
     
     def GotoURL(self, URL, ReportErrors=True, NotSameWinIfPossible=False):
-        thread.start_new_thread(webbrowser.open, (URL, NotSameWinIfPossible))
+        t = Thread(target=webbrowser.open, args=(URL, NotSameWinIfPossible))
+        t.start()
         self.SetVisited(True)
         self.UpdateLink(True)
         return True

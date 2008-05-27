@@ -161,11 +161,3 @@ class Action(object):
     class Exception(eg.Exception):
         pass
     
-    @classmethod
-    def AddActionFactory(cls, parent, clsName, name, description=None, value=None):
-        actionCls = ClassType(
-            clsName,
-            (cls, ),
-            dict(name=name, description=description, value=value),
-        )
-        parent.AddAction(actionCls)

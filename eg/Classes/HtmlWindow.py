@@ -20,7 +20,6 @@
 # $LastChangedRevision$
 # $LastChangedBy$
 
-import thread
 import webbrowser
 import threading
 
@@ -64,7 +63,8 @@ class HtmlWindow(OriginalHtmlWindow):
     
     def OnLinkClicked(self, link):
         if not self.waiting:
-            thread.start_new_thread(self.__open_url, (link.GetHref(),))
+            t = threading.Thread(target=self.__open_url, args=(link.GetHref(),))
+            t.start()
         
         
     def SetBasePath(self, basePath):

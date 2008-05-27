@@ -145,6 +145,7 @@ class PluginInfo(object):
             canMultiLoad = infoDict.get("canMultiLoad", cls.canMultiLoad)
             createMacrosOnAdd = infoDict.get("createMacrosOnAdd", cls.createMacrosOnAdd)
             path = pluginPath + "/"
+        info.__name__ = pluginName + "_PluginInfo"
         info.pluginName = pluginName
         info.englishName = info.name
         info.englishDescription = info.description

@@ -279,3 +279,4 @@ class Plugin(object):
     
     def AddActionsFromList(self, theList, defaultAction=None):
         self.info.actionGroup.AddActionsFromList(theList, defaultAction)
+        

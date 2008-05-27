@@ -176,6 +176,9 @@ class EventGhost(object):
         eg.SendKeys = SendKeys
         
         import eg.WinApi.COMServer
+        eg.actionThread = eg.ActionThread()
+        eg.pluginManager = eg.PluginManager()
+
         if not args.install:
             if args.translate:
                 eg.LanguageEditor()
@@ -215,9 +218,7 @@ class EventGhost(object):
         eg.scheduler = eg.Scheduler()
         eg.document = eg.Document()
         eg.taskBarIcon = eg.TaskBarIcon()
-        eg.actionThread = eg.ActionThread()
         eg.eventThread = eg.EventThread()
-        eg.pluginManager = eg.PluginManager()
         eg.colour = eg.Colour()
         
         self.scheduler.start()
