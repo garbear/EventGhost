@@ -1,6 +1,27 @@
+/*
+// This file is part of the EventGhost project.
+//
+// Copyright (C) 2005-2008 Lars-Peter Voss <bitmonster@eventghost.org>
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+*/
+
+
 #include "Python.h"
 #define _WIN32_WINNT 0x501
-#include "windows.h"
+#include <windows.h>
 #include "utils.h"
 #include "hooks.h"
 
@@ -93,7 +114,7 @@ ResetKeyboardHook(void)
 }
 
 
-BOOL 
+static BOOL 
 InsertKey(BYTE key)
 {
 	int i, pos;
@@ -123,7 +144,7 @@ InsertKey(BYTE key)
 }
 
 
-void 
+static void 
 RemoveKey(BYTE key)
 {
 	int i, j;
@@ -144,7 +165,7 @@ RemoveKey(BYTE key)
 }
 
 
-BOOL
+static BOOL
 BuildKeyString(char *buffer)
 {
 	int i, j;
@@ -183,7 +204,7 @@ BuildKeyString(char *buffer)
 }
 
 
-BOOL
+static BOOL
 CallPyCallback(char *keyString)
 {
 	PyObject *arglist, *pyRes;
@@ -206,7 +227,7 @@ CallPyCallback(char *keyString)
 }
 
 
-LRESULT CALLBACK 
+static LRESULT CALLBACK 
 KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) 
 {
 	PKBDLLHOOKSTRUCT kbd;
@@ -304,6 +325,9 @@ KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 callNextHook:
 	return CallNextHookEx(gOldKeyHook, nCode, wParam, lParam);
 blockThisKey:
+	// return a nonzero value to prevent the system from passing the 
+	// message to the rest of the hook chain or the target window 
+	// procedure
 	return 42;
 }
 
@@ -342,7 +366,12 @@ void
 SetKeyboardHook(HINSTANCE hMod)
 {
 	ResetKeyboardHook();
-	gOldKeyHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, (HINSTANCE) hMod, 0);
+	gOldKeyHook = SetWindowsHookEx(
+		WH_KEYBOARD_LL, // hook low-level keyboard input events
+		KeyboardProc,	// pointer to the hook procedure
+		hMod,			// handle to the DLL containing the hook procedure
+		0				// associated with all existing threads running in 
+	);					// the same desktop as the calling thread
 	if(gOldKeyHook == NULL)
 	{
 		ErrorExit("SetWindowsHookEx");

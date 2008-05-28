@@ -110,14 +110,68 @@ def GetFuncArgString(func, args, kwargs):
     return fname, "(" + ", ".join(res) + ")"
 
 
+class MethodWrapper(object):
+    def __init__(self, instance, func):
+        self.instance = instance
+        self.func = func
+    
+    def __call__(self, *args, **kwargs):
+        return self.func(self.instance, *args, **kwargs)
+
+
+class LogFuncWrapper(object):
+    def __init__(self, func):
+        self.func = func
+        def wrapper(*args, **kwargs):
+            fname, argString = GetFuncArgString(func, args, kwargs)
+            eg.PrintDebugNotice(instance.__class__.__name__ + "." + fname + argString)
+            return func(instance, *args, **kwargs)
+        self.wrapper = wrapper
+        self.wrappers = {}
+    
+    def __call__(self, *args, **kwargs):
+        print "unbound call", self.func
+        return self.func(*args, **kwargs)
+    
+    def __get__(self, instance, instCls=None):
+        if instance is None:
+            return self
+        # must return the same object for same instance
+        return self.wrapper
+    
+    
+
+
+class LogWithReturnFuncWrapper(object):
+    def __init__(self, func):
+        self.func = func
+    
+    def __call__(self, *args, **kwargs):
+        print "unbound call", self.func
+        return self.func(*args, **kwargs)
+    
+    def __get__(self, instance, instCls=None):
+        if instance is None:
+            return self
+        def wrapper(*args, **kwargs):
+            fname, argString = GetFuncArgString(self.func, args, kwargs)
+            clsName = instance.__class__.__name__
+            eg.PrintDebugNotice(clsName + "." + fname + argString)
+            res = self.func(instance, *args, **kwargs)
+            eg.PrintDebugNotice(clsName + "." + fname + " => " + repr(res))
+            return res
+        return wrapper
+    
+    
 def LogIt(func):
     """Logs the function call, if eg.debugLevel is set."""
     if not eg.debugLevel:
         return func
     
-    if func.func_code.co_flags & 0x20:
+    if hasattr(func, "func_code") and func.func_code.co_flags & 0x20:
         raise TypeError("Can't wrap generator function")
     
+    #return LogFuncWrapper(func)
     def LogItWrapper(*args, **kwargs):
         fname, argString = GetFuncArgString(func, args, kwargs)
         eg.PrintDebugNotice(fname + argString)
@@ -129,7 +183,7 @@ def LogItWithReturn(func):
     """Logs the function call and return, if eg.debugLevel is set."""
     if not eg.debugLevel:
         return func
-    
+    #return LogWithReturnFuncWrapper(func)
     def LogItWithReturnWrapper(*args, **kwargs):
         fname, argString = GetFuncArgString(func, args, kwargs)
         eg.PrintDebugNotice(fname + argString)

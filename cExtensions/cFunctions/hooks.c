@@ -1,24 +1,44 @@
+/*
+// This file is part of the EventGhost project.
+//
+// Copyright (C) 2005-2008 Lars-Peter Voss <bitmonster@eventghost.org>
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+*/
+
 #include "Python.h"
 #define _WIN32_WINNT 0x501
-#include "windows.h"
+#include <windows.h>
 #include "utils.h"
 #include "keyhook.h"
 #include "mousehook.h"
 
 volatile DWORD gLastTickCount;
 volatile BOOL gIsInIdle = FALSE;
-static DWORD gWaitThreadId = 0;
-static DWORD gHookThreadId = 0;
-static HANDLE gHookThreadHandle;
-static HANDLE gWaitThreadHandle;
-static HANDLE waitEvent;
+DWORD gWaitThreadId = 0;
+DWORD gHookThreadId = 0;
+HANDLE gHookThreadHandle;
+HANDLE gWaitThreadHandle;
+HANDLE waitEvent;
 DWORD gIdleTimeout = 60000;
 
 PyObject* gPyIdleCallback;
 PyObject* gPyUnIdleCallback;
 
 
-DWORD WINAPI 
+static DWORD WINAPI 
 HookThreadProc(HANDLE startupEvent)
 {
     MSG msg;
@@ -62,7 +82,7 @@ HookThreadProc(HANDLE startupEvent)
 }
 
 
-DWORD WINAPI 
+static DWORD WINAPI 
 WaitThreadProc(HANDLE startupEvent)
 {
 	DWORD res;
@@ -144,7 +164,8 @@ out:
 }
 
 
-void AwakeWaitThread(void)
+void 
+AwakeWaitThread(void)
 {
 	gLastTickCount = GetTickCount();
 	if (gIsInIdle)

@@ -167,7 +167,7 @@ languageNames = {
 }
 
     
-@eg.LogIt
+#@eg.LogIt
 def LoadStrings(language):   
     class tmp:
         pass

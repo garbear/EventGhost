@@ -38,7 +38,7 @@ class TreeLink(object):
         
         
     @classmethod
-    @eg.LogIt
+    #@eg.LogIt
     def StartLoad(cls):
         cls.currentXmlId = 0
         cls.id2target.clear()
