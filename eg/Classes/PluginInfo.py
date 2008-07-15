@@ -25,7 +25,7 @@ from os.path import exists, join
 import sys
 import types
 
-from Utils import SetClass
+from eg.Utils import SetClass
 
 
 class PluginProxy(object):
@@ -49,7 +49,6 @@ class UnknownPlugin(eg.Plugin):
         raise self.Exceptions.PluginNotFound
     
         
-    
     
 class PluginInfo(object):
     """
@@ -120,6 +119,11 @@ class PluginInfo(object):
             del sys.path[0]
         return module
     
+    
+    def GetBasePath(self):
+        return self.path
+        
+        
     @classmethod
     def GetPluginInfo(cls, pluginName):
         # first look, if we already have cached this plugin class
@@ -293,6 +297,10 @@ class PluginInfo(object):
         return info
     
         
+    def GetArgs(self):
+        return self.args
+    
+    
     def Start(self):
         if self.isStarted:
             return

@@ -1271,3 +1271,6 @@ EmptyClipboard.argtypes = []
 SetClipboardData = _user32.SetClipboardData
 SetClipboardData.restype = HANDLE
 SetClipboardData.argtypes = [UINT, HANDLE]
+SetFocus = _user32.SetFocus
+SetFocus.restype = HWND
+SetFocus.argtypes = [HWND]

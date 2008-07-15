@@ -26,7 +26,6 @@ from cStringIO import StringIO
 import xml.etree.cElementTree as ElementTree
 
 from TreeLink import TreeLink
-from TreePosition import TreePosition
 
 HINT_NO_DROP = None           # item cannot be dropped on it
 HINT_MOVE_INSIDE = 1          # item would be dropped inside
@@ -200,13 +199,6 @@ class TreeItem(object):
             tree.SelectItem(self.id)
         
         
-    def GetPositionData(self):
-        """ 
-        Returns a TreePosition object to the item.
-        """    
-        return TreePosition(self)
-    
-    
     @eg.AssertNotMainThread
     def Delete(self):
         if self.HasValidId():

@@ -52,6 +52,7 @@ from eg.WinApi.Dynamic import (
     HSHELL_WINDOWCREATED, HSHELL_WINDOWDESTROYED, HSHELL_WINDOWACTIVATED,
     WS_VISIBLE, 
 )
+from eg.cFunctions import GetWindowText, GetClassName
 from eg.WinApi.Utils import GetProcessName
 
 EnumWindowsProc = WINFUNCTYPE(BOOL, HWND, LPARAM)
@@ -108,7 +109,7 @@ class Task(eg.PluginClass):
         
     @eg.LogIt
     def FatalWndProc(self, hwnd, mesg, wParam, lParam):
-        print "DLL_PROCESS_DETACH", wParam, lParam
+        print "SC_SCREENSAVE", wParam, lParam#, GetClassName(wParam), GetWindowText(wParam)
     
     
     def FocusWndProc(self, hwnd, mesg, wParam, lParam):

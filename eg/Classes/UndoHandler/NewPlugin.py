@@ -37,7 +37,7 @@ class NewPlugin(eg.UndoHandler.NewItem):
             file=pluginInfo.pluginName
         )
         pluginItem.Select()
-        if pluginItem.executable:
+        if pluginItem.info.instance:
             if pluginItem.NeedsStartupConfiguration():
                 if not eg.UndoHandler.Configure().Do(pluginItem, True):
                     pluginItem.Delete()

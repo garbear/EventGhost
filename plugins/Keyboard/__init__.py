@@ -59,7 +59,6 @@ eg.RegisterPlugin(
 from eg import HasActiveHandler
 from eg.cFunctions import SetKeyboardCallback
 
-    
 class Keyboard(eg.PluginClass):
     
     def __start__(self, *args):

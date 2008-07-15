@@ -26,6 +26,7 @@ from TreeItem import HINT_NO_DROP, HINT_MOVE_BEFORE_OR_AFTER, HINT_MOVE_AFTER
         
 class EventItem(TreeItem):
     xmlTag = "Event"
+    typeName = "event"
     icon = eg.Icons.EVENT_ICON
     
     def __init__(self, parent, node):

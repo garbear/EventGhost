@@ -96,7 +96,7 @@ class MenuItem(wx.MenuItem):
         
     
     def Check(self, check=True):
-        wx.MenuItem.Check(self, check)
+        wx.MenuItem.Check(self, bool(check))
         return self
         
     

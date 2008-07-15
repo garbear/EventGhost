@@ -33,6 +33,7 @@ from Dynamic import (
     IsWindowVisible, GetParent, GetWindowDC, GetClassLong, EnumChildWindows,
     ReleaseDC, GetDC, DeleteObject, CreatePen, GetSystemMetrics, 
     SendMessageTimeout, ScreenToClient, WindowFromPoint, SendMessageTimeout,
+    SetFocus,
     # types
     DWORD, RECT, POINT, MONITORENUMPROC, RGB, WINFUNCTYPE,
     BOOL, HWND, LPARAM,

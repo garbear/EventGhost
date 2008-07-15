@@ -27,6 +27,7 @@ from TreeItem import HINT_NO_DROP, HINT_MOVE_INSIDE, HINT_MOVE_BEFORE_OR_AFTER
 
 class MacroItem(ContainerItem):
     xmlTag = "Macro"
+    typeName = "macro"
     icon = eg.Icons.MACRO_ICON
     isExecutable = True
     shouldSelectOnExecute = False

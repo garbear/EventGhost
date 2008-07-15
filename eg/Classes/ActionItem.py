@@ -48,10 +48,10 @@ gRenamedColour = GetRenamedColor()
 
 class ActionItem(TreeItem):
     xmlTag = "Action"
+    typeName = "action"
     
     icon = eg.Icons.ACTION_ICON
-    executable = None
-    args = None
+   # executable = None
     isExecutable = True
     isConfigurable = True
     openConfigDialog = None
@@ -61,11 +61,11 @@ class ActionItem(TreeItem):
 
     def GetData(self):
         attr, text = TreeItem.GetData(self)
-        action = self.executable
+        action = self.info.instance
         text = "%s.%s(%s)" % (
             action.plugin.info.evalName,
             action.__class__.__name__,
-            ", ".join([repr(arg) for arg in self.args])
+            ", ".join([repr(arg) for arg in self.info.GetArgs()])
         )
         return attr, text
 
@@ -91,13 +91,13 @@ class ActionItem(TreeItem):
         if action is None or not issubclass(action, eg.Action):
             action = eg.plugins.EventGhost.PythonCommand
             argString = repr(text)
-        self.executable = action()
+        self.info = action.info(self, text)
         self.icon = action.info.icon            
         self.SetArgumentString(argString)
     
     
     def GetArgumentString(self):
-        return ", ".join([repr(arg) for arg in self.GetArgs()])
+        return ", ".join([repr(arg) for arg in self.info.GetArgs()])
     
         
     def SetArgumentString(self, argString):
@@ -118,7 +118,7 @@ class ActionItem(TreeItem):
 
     def _Delete(self):
         TreeItem._Delete(self)
-        for arg in self.GetArgs():
+        for arg in self.info.GetArgs():
             if isinstance(arg, TreeLink):
                 if arg.target:
                     arg.target.dependants.remove(arg)
@@ -127,15 +127,11 @@ class ActionItem(TreeItem):
                 del arg
         
     
-    def GetArgs(self):
-        return self.args
-    
-
     def SetArgs(self, args):
-        if self.args != args:
-            self.args = args
+        if self.info.GetArgs() != args:
+            self.info.SetArgs(args)
             try:
-                self.compiled = self.executable.Compile(*args)
+                self.compiled = self.info.instance.Compile(*args)
             except:
                 eg.PrintTraceback(source=self)
                 self.compiled = None
@@ -162,20 +158,9 @@ class ActionItem(TreeItem):
         
     def GetLabel(self):
         if self.name:
-            name = self.name
+            return self.name
         else:
-            # often the GetLabel() method of the executable can't handle
-            # a call without arguments, because suitable default arguments
-            # are missing. So we use a fallback in such cases.
-            executable = self.executable
-            try:
-                name = executable.GetLabel(*self.args)
-            except:
-                name = executable.name
-            pluginInfo = executable.plugin.info
-            if pluginInfo.kind != "core":
-                name = pluginInfo.label + ": " + name
-        return name
+            return self.info.GetLabel()
 
 
     def NeedsStartupConfiguration(self):
@@ -184,7 +169,7 @@ class ActionItem(TreeItem):
         """
         # if the Configure method of the executable is overriden, we assume
         # the item wants to be configured after creation
-        im_func = self.executable.Configure.im_func
+        im_func = self.info.instance.Configure.im_func
         return im_func != eg.Action.Configure.im_func
     
     
@@ -197,13 +182,13 @@ class ActionItem(TreeItem):
         if self.helpDialog:
             self.helpDialog.Raise()
             return
-        action = self.executable
+        info = self.info
         self.helpDialog = eg.HTMLDialog(
             parent,
-            action.name, 
-            action.description, 
-            action.info.icon.GetWxIcon(),
-            "plugins/%s/" % action.plugin.__module__
+            info.instance.name, 
+            info.instance.description, 
+            info.icon.GetWxIcon(),
+            info.GetBasePath()
         )
         def OnClose(event):
             self.helpDialog.Destroy()
@@ -222,7 +207,7 @@ class ActionItem(TreeItem):
             #self.Select()
             wx.CallAfter(self.Select)
         eg.currentItem = self
-        action = self.executable
+        action = self.info.instance
         if not action:
             return
         if not action.plugin.info.isStarted:

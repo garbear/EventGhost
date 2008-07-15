@@ -25,15 +25,8 @@ from types import ClassType
 from eg.Utils import SetClass
 
 Action = eg.Action
+ActionInfo = eg.ActionInfo
 
-
-class ActionInfo(object):
-    __slots__ = ["icon"]
-    
-    def __init__(self, icon):
-        self.icon = icon
-            
-    
                 
 class ActionGroup(object):
     __slots__ = [
@@ -111,6 +104,14 @@ class ActionGroup(object):
             description = actionCls.description
             textCls.description = textCls.name if description is None else description
             
+        actionInfo = ClassType(
+            "ActionClassInfo",
+            (ActionInfo, ),
+            dict(
+                icon=icon,
+            )
+        )
+        
         actionCls = ClassType(
             actionClsName,
             (actionCls, ), 
@@ -118,11 +119,12 @@ class ActionGroup(object):
                 name=text.name,
                 description=text.description,
                 plugin=plugin,
-                info=ActionInfo(icon),
+                info=actionInfo,
                 text=text,
                 Exceptions=eg.Exceptions
             )
         )
+        actionInfo.actionCls = actionCls
         pluginInfo.actions[actionClsName] = actionCls
         actionCls.OnAddAction()
         if not hidden:

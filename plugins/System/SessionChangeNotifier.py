@@ -74,10 +74,10 @@ WTS_WPARAM_DICT = {
     2: "ConsoleDisconnect",
     3: "RemoteConnect",
     4: "RemoteDisconnect",
-    5: "SessionLogon",
-    6: "SessionLogoff",
-    7: "SessionLock",
-    8: "SessionUnlock",
+    #5: "SessionLogon",
+    #6: "SessionLogoff",
+    #7: "SessionLock",
+    #8: "SessionUnlock",
     9: "SessionRemoteControl"
 }
 

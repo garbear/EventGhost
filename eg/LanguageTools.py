@@ -20,10 +20,9 @@
 # $LastChangedRevision$
 # $LastChangedBy$
 
-import os
 from types import InstanceType
 
-from Utils import SetClass
+from eg.Utils import SetClass
 
 
 languageNames = {
@@ -180,7 +179,7 @@ def LoadStrings(language):
             return InstanceType(EmptyTextBunch, dict)
     try:
         execfile(
-            "Languages\\" + language + ".py", 
+            "languages\\" + language + ".py", 
             {"__metaclass__": MetaClass}, 
             tmp.__dict__
         )
@@ -190,20 +189,4 @@ def LoadStrings(language):
 
     
     
-def LoadAll():
-    eg.CheckUpdate
-    eg.AboutDialog
-    eg.AddActionDialog
-    eg.AddPluginDialog
-    eg.AddActionGroupDialog
-    eg.OptionsDialog
-    eg.FindDialog
-    import Classes.Exceptions
-    #import MainFrame
-    
-    for plugin in os.listdir("plugins"):
-        if not plugin.startswith("."):
-            eg.PluginInfo.Open(plugin, plugin, ())
-
-
     

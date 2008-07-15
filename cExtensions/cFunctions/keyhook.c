@@ -99,9 +99,13 @@ BOOL  gIgnoreNextWinKey;
 void 
 ResetKeyboardHook(void)
 {
+	int i;
 	gNumCurrentKeys = 0;
 	memset(gCurrentKeys, 0, 16);
 	memset(gKeyStateData, 0, 256);
+	GetKeyboardState(gKeyStateData);
+	//for (i=0; i<256; i++)
+	//	print("%x %i", i, gKeyStateData[i]);
 	gKeyStateData[VK_NUMLOCK] = (GetKeyState(VK_NUMLOCK)&0x0001) ? 0x01 : 0x00;
 	gKeyStateData[VK_CAPITAL] = (GetKeyState(VK_CAPITAL)&0x0001) ? 0x01 : 0x00;
 	gKeyStateData[VK_SCROLL] = (GetKeyState(VK_SCROLL)&0x0001) ? 0x01 : 0x00;
@@ -234,8 +238,6 @@ KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 	BOOL isAltDown;
 	BOOL isUpKey;
 	BYTE vkCode;
-	//PyObject *arglist, *pyRes;
-	//PyGILState_STATE gil;
 	char keyString[MAX_RES_STRING_CHARS];
 
 	
@@ -306,14 +308,18 @@ KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 		gBlockedWinKey = 0;
 		goto blockThisKey;
 	}
+	// see if we previously have blocked the Windows key
 	if (gBlockedWinKey)
 	{
+		// re-insert the blocked Windows key
 		gIgnoreNextWinKey = TRUE;
 		keybd_event(gBlockedWinKey, 0, 0, 0);
+		gBlockedWinKey = 0;
 	}
-	gBlockedWinKey = 0;
 
-	if ((vkCode == 91) || (vkCode == 92))
+	// if the Windows key is pressed, store its exacpt value (right or left)
+	// and block the key this time
+	if ((vkCode == VK_LWIN) || (vkCode == VK_RWIN ))
 	{
 		if (!isUpKey)
 		{

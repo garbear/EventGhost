@@ -40,7 +40,7 @@ MODULES_TO_IGNORE = [
 
 HEADER = """\
 #-----------------------------------------------------------------------------
-# This file is automatically created by the MakeImports.py script.
+# This file is automatically created by the tools/MakeImports.py script.
 # Don't try to edit this file yourself.
 #-----------------------------------------------------------------------------
 

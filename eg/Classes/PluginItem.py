@@ -30,6 +30,7 @@ from TreeItem import TreeItem
 
 class PluginItem(ActionItem):
     xmlTag = "Plugin"
+    typeName = "plugin"
     icon = eg.Icons.PLUGIN_ICON
     isRenameable = False            
     info = None
@@ -38,7 +39,7 @@ class PluginItem(ActionItem):
         attr, text = TreeItem.GetData(self)
         del attr[0]
         attr.append(('File', self.pluginFile))
-        attr.append(('Identifier', self.executable.info.evalName))
+        attr.append(('Identifier', self.info.evalName))
         text = base64.b64encode(pickle.dumps(self.info.args, 2))
         return attr, text
     
@@ -57,7 +58,7 @@ class PluginItem(ActionItem):
         if info.icon != self.icon:
             self.icon = eg.Icons.PluginSubIcon(info.icon)
         #self.icon = info.icon
-        self.executable = info.instance
+        #self.executable = info.instance
 
 
     def GetLabel(self):
@@ -101,7 +102,7 @@ class PluginItem(ActionItem):
             #self.Select()
             wx.CallAfter(self.Select)
         self.info.Start()
-        eg.result = self.executable
+        eg.result = self.info.instance
         return None, None
         
         
@@ -121,17 +122,20 @@ class PluginItem(ActionItem):
             info.RemovePluginInstance()
         eg.actionThread.Call(DoIt)
         ActionItem._Delete(self)
-        self.executable = None
+        #self.executable = None
         self.info = None
         
         
     def AskDelete(self):
         ActionItem = self.document.ActionItem
+        plugin = self.info.instance
         def searchFunc(obj):
             if obj.__class__ == ActionItem:
-                if obj.executable and obj.executable.plugin == self.executable:
+                action = obj.info.instance
+                if action and action.plugin == plugin:
                     return True
             return None
+        
         if self.root.Traverse(searchFunc) is not None:
             answer = wx.MessageBox(
                 eg.text.General.deletePlugin,
@@ -152,31 +156,6 @@ class PluginItem(ActionItem):
         if self.info.instance.Configure.im_func != eg.Plugin.Configure.im_func:
             return True
         return False
-    
-    
-    @eg.LogIt
-    def ShowHelp(self, parent=None):
-        if self.helpDialog:
-            self.helpDialog.Raise()
-            return
-        plugin = self.info.instance
-        self.helpDialog = eg.HTMLDialog(
-            parent,
-            eg.text.General.pluginLabel % plugin.name, 
-            plugin.description, 
-            plugin.info.icon.GetWxIcon(),
-            basePath=plugin.info.path
-        )
-        def OnClose(event):
-            self.helpDialog.Destroy()
-            del self.helpDialog
-        self.helpDialog.Bind(wx.EVT_CLOSE, OnClose)
-        self.helpDialog.okButton.Bind(wx.EVT_BUTTON, OnClose)
-        self.helpDialog.Show()
-        
-                        
-    def GetArgs(self):
-        return self.info.args
     
     
     @eg.LogIt
@@ -208,7 +187,7 @@ class PluginItem(ActionItem):
         plugin = self.info.instance
         def Traverse(item):
             if item.__class__ == ActionItem:
-                if item.executable.plugin == plugin:
+                if item.info.instance.plugin == plugin:
                     item.Refresh()
             else:
                 if item.childs and item.isExpanded:

@@ -31,7 +31,7 @@ class Configure:
     
     def Do(self, item, isFirstConfigure=False):
         # TODO: doing the thread ping-pong right
-        executable = item.executable
+        executable = item.info.instance
         if executable is None:
             return False
         if item.openConfigDialog:
@@ -39,7 +39,7 @@ class Configure:
             return False
         
         self.oldArgumentString = item.GetArgumentString()
-        oldArgs = item.GetArgs()
+        oldArgs = item.info.GetArgs()
         self.name = eg.text.MainFrame.Menu.Configure.replace("&", "")
         
         wasApplied = False
@@ -51,7 +51,7 @@ class Configure:
             try:
                 if gr is None or gr.dead:
                     gr = eg.Greenlet(executable.Configure)
-                    newArgs = gr.switch(*item.GetArgs())
+                    newArgs = gr.switch(*item.info.GetArgs())
                 else:
                     newArgs = gr.switch()
             except:
@@ -103,7 +103,7 @@ class Configure:
         newArgumentString = item.GetArgumentString()
         if self.oldArgumentString != newArgumentString:
             if not isFirstConfigure:
-                self.positionData = item.GetPositionData()
+                self.positionData = eg.TreePosition(item)
                 item.document.AppendUndoHandler(self)
             item.Refresh()
         return True

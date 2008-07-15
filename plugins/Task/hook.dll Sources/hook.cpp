@@ -18,6 +18,18 @@ LRESULT CALLBACK CbtHook(int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		PostMessage(g_egMessageHwnd, WM_APP+1, wParam, lParam);
 	}
+	//if (nCode == HCBT_CREATEWND)
+	//{
+	//	PostMessage(g_egMessageHwnd, WM_APP+2, wParam, lParam);
+	//}
+	//if (nCode == HCBT_SYSCOMMAND)
+	//{
+	//	if (wParam == SC_MONITORPOWER || 1)
+	//	{
+	//		PostMessage(g_egMessageHwnd, WM_APP+2, wParam, lParam);
+	//		return 0;
+	//	}
+	//}
 	return CallNextHookEx(hookHandle, nCode, wParam, lParam);
 }
 

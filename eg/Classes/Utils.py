@@ -25,7 +25,8 @@ __all__ = ["Bunch", "EventHook", "LogIt", "LogItWithReturn",
     "SetClass", "EnsureVisible", "namedtuple", "AsGreenlet",
     "VBoxSizer", "HBoxSizer", "EqualizeWidths", "P",
 ]
-    
+import sys
+Utils = sys.modules[__name__]
 
 import threading
 import time
@@ -460,3 +461,5 @@ def namedtuple(typename, field_names, verbose=False):
         result.__module__ = _sys._getframe(1).f_globals['__name__']
 
     return result
+
+

@@ -22,7 +22,7 @@
 
 
 
-from Utils import SetClass
+from eg.Utils import SetClass
 
 class CustomMetaclass(type):
     def __new__(cls, name, bases, dct):

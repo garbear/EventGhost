@@ -551,19 +551,10 @@ class TreeCtrl(wx.TreeCtrl):
             eg.UndoHandler.MoveTo(self.document, dragObject, parent, pos)
 
 
-    def GetTopLevelWindow(self):
-        result = self
-        while True:
-            parent = result.GetParent()
-            if parent is None:
-                return result
-            result = parent
-            
-        
     def OnDragTimer(self, event):
         pos = wx.GetMousePosition()
         r = self.GetScreenRect()
-        r2 = self.GetTopLevelWindow().GetScreenRect()
+        r2 = wx.GetTopLevelParent(self).GetScreenRect()
         if r.x <= pos.x <= r.GetRight():
             if pos.y < r.y:
                 if pos.y > r2.y:

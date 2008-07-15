@@ -25,13 +25,18 @@
 import sys
 import imp
 from os.path import dirname, abspath, join
+import os
 
 if hasattr(sys, "frozen"):
     programPath = dirname(unicode(sys.executable, sys.getfilesystemencoding()))
 else:
     programPath = dirname(unicode(__file__, sys.getfilesystemencoding()))
-mainFilePath = join(programPath, "eg", "Main.py").encode('mbcs')
-imp.load_source("__main__", mainFilePath)
+sys.path.append(programPath)
+os.chdir(programPath)
+
+import eg
+eg.Main()
+eg.app.MainLoop()
 
 # The "imports" module file is created by the tools/MakeImports.py script
 # and is located in the "tools" directory also.

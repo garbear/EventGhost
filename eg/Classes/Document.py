@@ -328,7 +328,7 @@ class Document(object):
         returns: wx.ID_OK     if no save was needed
                  wx.ID_YES    if file was saved
                  wx.ID_NO     if file was not saved
-                 wx.ID_CANCEL if user canceled posssible save
+                 wx.ID_CANCEL if user canceled possible save
         """
         if not self.isDirty.get():
             return wx.ID_OK

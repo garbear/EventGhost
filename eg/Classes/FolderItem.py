@@ -25,6 +25,7 @@ from TreeItem import HINT_MOVE_EVERYWHERE, HINT_NO_DROP
 
 class FolderItem(ContainerItem):
     xmlTag = "Folder"
+    typeName = "folder"
     icon = eg.Icons.FOLDER_ICON
 
     def DropTest(self, cls):

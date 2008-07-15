@@ -84,6 +84,7 @@ from Execute import Execute
 from DeviceChangeNotifier import DeviceChangeNotifier
 from PowerBroadcastNotifier import PowerBroadcastNotifier
 import Registry
+import SensLogon
 
 ourProcessId = GetCurrentProcessId()
 
@@ -208,12 +209,17 @@ class System(eg.PluginClass):
         
         # start the power broadcast notifications
         self.powerBroadcastNotifier = PowerBroadcastNotifier(self)
+        
+        # start the SENS notifications
+        SensLogon.plugin = self
 
         # start the session change notifications (only on Win XP and above)
         majorVersion, minorVersion = sys.getwindowsversion()[0:2]
         if majorVersion > 5 or (majorVersion == 5 and minorVersion > 0):
             from SessionChangeNotifier import SessionChangeNotifier
             self.sessionChangeNotifier = SessionChangeNotifier(self)
+        else:
+            self.sessionChangeNotifier = None
 
         try:
             StartHooks(
@@ -267,8 +273,11 @@ class System(eg.PluginClass):
         eg.Unbind("System.SessionLock", self.OnSessionLock)
         eg.Unbind("System.SessionUnlock", self.OnSessionUnlock)
         eg.app.clipboardEvent.Unbind(self.OnClipboardChange)
+        if self.sessionChangeNotifier:
+            self.sessionChangeNotifier.Close()
         self.deviceChangeNotifier.Close()
         self.powerBroadcastNotifier.Close()
+        SensLogon.plugin = SensLogon.doNothingPlugin
         StopHooks()
         
         
@@ -1135,9 +1144,6 @@ class WakeOnLan(eg.ActionClass):
             panel.SetResult(macCtrl.GetValue())
     
 
-#-----------------------------------------------------------------------------
-# Action: System.SetSystemIdleTimer
-#-----------------------------------------------------------------------------
 
 class SetSystemIdleTimer(eg.ActionClass):
     name = "Set System Idle Timer"

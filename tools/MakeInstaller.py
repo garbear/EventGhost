@@ -2,7 +2,105 @@
 # $LastChangedRevision$
 # $LastChangedBy$
 
+PROGRAM_NAME = "EventGhost"
 ROOT_DLLS = ["MFC71.dll", "msvcr71.dll", "msvcp71.dll"]
+PY2EXE_EXCLUDES = [
+    "pywin",
+    "pywin.dialogs",
+    "pywin.dialogs.list",
+    "_ssl",
+    # no TCL
+    "Tkconstants", 
+    "Tkinter", 
+    "tcl",
+    # and no TCL through PIL
+    "_imagingtk", 
+    "PIL._imagingtk", 
+    "ImageTk", 
+    "PIL.ImageTk", 
+    "FixTk",
+]
+
+INNO_SCRIPT_TEMPLATE = """
+[Tasks]
+Name: "desktopicon"; Description: {cm:CreateDesktopIcon}; GroupDescription: {cm:AdditionalIcons}
+
+[Languages]
+Name: "en"; MessagesFile: "compiler:Default.isl"
+Name: Deutsch; MessagesFile: "compiler:Languages\\German.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\\French.isl"
+
+[Setup]
+ShowLanguageDialog=auto
+AppName=EventGhost
+AppVerName=EventGhost %(VERSION)s
+DefaultDirName={pf}\\EventGhost
+DefaultGroupName=EventGhost
+Compression=lzma/ultra
+SolidCompression=yes
+InternalCompressLevel=ultra
+OutputDir=%(OUT_DIR)s
+OutputBaseFilename=%(OUT_FILE_BASE)s
+InfoBeforeFile=%(TOOLS_DIR)s\\LICENSE.RTF
+DisableReadyPage=yes
+AppMutex=EventGhost:7EB106DC-468D-4345-9CFE-B0021039114B
+
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\\eg"
+%(INSTALL_DELETE)s
+
+[Files]
+Source: "%(TRUNK_DIR)s\\*.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "%(TRUNK_DIR)s\\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "%(TRUNK_DIR)s\\lib\\*.*"; DestDir: "{app}\\lib"; Flags: ignoreversion recursesubdirs
+%(INSTALL_FILES)s
+Source: "%(TRUNK_DIR)s\\Example.xml"; DestDir: "{userappdata}\\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "%(TRUNK_DIR)s\\tools\\WebSite.url"; DestName: "EventGhost Web Site.url"; DestDir: "{group}"
+Source: "%(TRUNK_DIR)s\\tools\\WebForums.url"; DestName: "EventGhost Forums.url"; DestDir: "{group}"
+Source: "%(TRUNK_DIR)s\\tools\\WebWiki.url"; DestName: "EventGhost Wiki.url"; DestDir: "{group}"
+
+[Run]
+Filename: "{app}\\EventGhost.exe"; Parameters: "-install"
+
+[UninstallRun]
+Filename: "{app}\\EventGhost.exe"; Parameters: "-uninstall"
+
+[Run] 
+Filename: "{app}\\EventGhost.exe"; Flags: postinstall nowait skipifsilent 
+
+[Icons]
+Name: "{group}\\EventGhost"; Filename: "{app}\\EventGhost.exe"
+Name: "{group}\\Uninstall EventGhost"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\\EventGhost"; Filename: "{app}\\EventGhost.exe"; Tasks: desktopicon
+"""
+
+# The manifest will be inserted as resource into the exe.  This
+# gives the controls the Windows XP appearance (if run on XP ;-)
+
+MANIFEST_TEMPLATE = '''
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+<assemblyIdentity
+    version="5.0.0.0"
+    processorArchitecture="x86"
+    name="%(prog)s"
+    type="win32"
+/>
+<description>%(prog)s Program</description>
+<dependency>
+    <dependentAssembly>
+        <assemblyIdentity
+            type="win32"
+            name="Microsoft.Windows.Common-Controls"
+            version="6.0.0.0"
+            processorArchitecture="X86"
+            publicKeyToken="6595b64144ccf1df"
+            language="*"
+        />
+    </dependentAssembly>
+</dependency>
+</assembly>
+'''
 
 OptionsList = (
     ("Create Source Archive", "createSourceArchive", False),
@@ -11,18 +109,9 @@ OptionsList = (
     ("SVN Commit", "commitSvn", True),
     ("Upload", "upload", True),
     ("Include 'noinclude' plugins", "includeNoIncludePlugins", False),
-    ("Create Update", "createUpdate", False),
 )
 
-import py2exe
-from py2exe.build_exe import isSystemDLL
-origIsSystemDLL = isSystemDLL
-def newIsSystemDLL(pathname):
-    res = origIsSystemDLL(pathname)
-    if not res:
-        print pathname, res
-    return res
-py2exe.build_exe.isSystemDLL = newIsSystemDLL
+
 
 class Options:
     pass
@@ -30,11 +119,11 @@ class Options:
 for label, name, default in OptionsList:
     setattr(Options, name, default)
 
+import py2exe
 import wx
 import sys
 import tempfile
 import os
-import re
 import fnmatch
 import time
 import zipfile
@@ -52,10 +141,17 @@ try:
 except:
     pass
 
-tmpDir = tempfile.mkdtemp()
-toolsDir = abspath(dirname(sys.argv[0]))
-trunkDir = abspath(join(toolsDir, ".."))
-outDir = abspath(join(trunkDir, ".."))
+TMP_DIR = tempfile.mkdtemp()
+TOOLS_DIR = abspath(dirname(sys.argv[0]))
+TRUNK_DIR = abspath(join(TOOLS_DIR, ".."))
+OUT_DIR = abspath(join(TRUNK_DIR, ".."))
+
+# the namespace for different templates
+class NS:
+    OUT_DIR = OUT_DIR
+    TRUNK_DIR = TRUNK_DIR
+    TOOLS_DIR = TOOLS_DIR
+
 
 SourcePattern = [
     "*.py", 
@@ -72,30 +168,10 @@ SourcePattern = [
 
 def GetFiles(files, pattern):
     for directory in ("eg", "plugins", "languages", "images"):
-        for path in locate(pattern, join(trunkDir, directory)):
-            files.append(path[len(trunkDir)+1:])
+        for path in locate(pattern, join(TRUNK_DIR, directory)):
+            files.append(path[len(TRUNK_DIR)+1:])
     return files
 
-
-def GetSourceFiles():
-    files = [
-        "EventGhost.pyw",
-        "EventGhost.ico",
-        "Example.xml",
-        "LICENSE.TXT",
-        "CHANGELOG.TXT",
-    ]
-    return GetFiles(files, SourcePattern)
-
-
-def GetUpdateFiles():
-    files = [
-        "Example.xml",
-        "LICENSE.TXT",
-        "CHANGELOG.TXT",
-    ]
-    return GetFiles(files, SourcePattern)
-    
 
 def GetSetupFiles():
     files = [
@@ -106,7 +182,7 @@ def GetSetupFiles():
     
 
 def UpdateVersionFile():
-    versionFilePath = join(trunkDir, "eg", "Classes", "Version.py")
+    versionFilePath = join(TRUNK_DIR, "eg", "Classes", "Version.py")
     fd = file(versionFilePath, "rt")
     lines = fd.readlines()
     fd.close()
@@ -131,13 +207,13 @@ def UpdateVersionFile():
             return True, 0, True
         svn = pysvn.Client()
         svn.callback_ssl_server_trust_prompt = ssl_server_trust_prompt
-        svn.checkin([trunkDir], "Created installer for %s" % versionCls.string)    return versionCls
+        svn.checkin([TRUNK_DIR], "created installer for %s" % versionCls.string)    return versionCls
     
     
-def UpdateChangeLog(namespace):    
-    path = join(trunkDir, "CHANGELOG.TXT")
+def UpdateChangeLog():    
+    path = join(TRUNK_DIR, "CHANGELOG.TXT")
     s1 = "Version %s (%s)\n" % (
-        namespace.VERSION, 
+        NS.VERSION, 
         time.strftime("%m/%d/%Y"),
     )
     fd = open(path, "r")
@@ -196,58 +272,13 @@ def RemoveDirectory(path):
 
 
 
-# The manifest will be inserted as resource into the exe.  This
-# gives the controls the Windows XP appearance (if run on XP ;-)
-
-manifest_template = '''
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-<assemblyIdentity
-    version="5.0.0.0"
-    processorArchitecture="x86"
-    name="%(prog)s"
-    type="win32"
-/>
-<description>%(prog)s Program</description>
-<dependency>
-    <dependentAssembly>
-        <assemblyIdentity
-            type="win32"
-            name="Microsoft.Windows.Common-Controls"
-            version="6.0.0.0"
-            processorArchitecture="X86"
-            publicKeyToken="6595b64144ccf1df"
-            language="*"
-        />
-    </dependentAssembly>
-</dependency>
-</assembly>
-'''
-
 RT_MANIFEST = 24
 shortpgm = "EventGhost"
-PY2EXE_EXCLUDES = [
-    "pywin",
-    "pywin.dialogs",
-    "pywin.dialogs.list",
-    "_ssl",
-    # no TCL
-    "Tkconstants", 
-    "Tkinter", 
-    "tcl",
-    # and no TCL through PIL
-    "_imagingtk", 
-    "PIL._imagingtk", 
-    "ImageTk", 
-    "PIL.ImageTk", 
-    "FixTk",
-]
-
 
 py2exeOptions = dict(
     options = dict(
         build = dict(
-            build_base = join(tmpDir, "build")
+            build_base = join(TMP_DIR, "build")
         ),
         py2exe = dict(
             compressed = 0,
@@ -262,18 +293,18 @@ py2exeOptions = dict(
                 "gdiplus.dll", 
                 "msvcr71.dll"
             ],
-            dist_dir = trunkDir,
-            custom_boot_script=join(trunkDir, "eg", "Py2ExeBootScript.py")
+            dist_dir = TRUNK_DIR,
+            custom_boot_script=join(TRUNK_DIR, "eg", "Py2ExeBootScript.py")
         )
     ),
     # The lib directory contains everything except the executables and the python dll.
-    zipfile = r"lib\python25.zip",
+    zipfile = "lib\\python25.zip",
     windows = [
         dict(
-            script = join(trunkDir, "EventGhost.pyw"),
-            icon_resources = [(1, join(trunkDir, "EventGhost.ico"))],
+            script = join(TRUNK_DIR, "EventGhost.pyw"),
+            icon_resources = [(1, join(TRUNK_DIR, "EventGhost.ico"))],
             other_resources = [
-                (RT_MANIFEST, 1, manifest_template % dict(prog=shortpgm))
+                (RT_MANIFEST, 1, MANIFEST_TEMPLATE % dict(prog=shortpgm))
             ],
             dest_base = shortpgm
         ),
@@ -286,11 +317,11 @@ py2exeOptions = dict(
 consoleOptions = dict(
     options = dict(
         build = dict(
-            build_base = join(tmpDir, "build2")
+            build_base = join(TMP_DIR, "build2")
         ),
         py2exe = dict(
             compressed = 0,
-            dist_dir = trunkDir,
+            dist_dir = TRUNK_DIR,
             excludes = PY2EXE_EXCLUDES,
             dll_excludes = ["w9xpopen.exe"],
         )
@@ -298,13 +329,13 @@ consoleOptions = dict(
     zipfile = r"lib\python25.zip",
     windows = [
         dict(
-            script = join(toolsDir, "py.py"),
+            script = join(TOOLS_DIR, "py.py"),
             dest_base = "pyw"
         )
     ],
     console = [
         dict(
-            script = join(toolsDir, "py.py"),
+            script = join(TOOLS_DIR, "py.py"),
             dest_base = "py"
         )
     ],
@@ -312,129 +343,19 @@ consoleOptions = dict(
 )
 
 
-INNO_SCRIPT_TEMPLATE = """
-[Tasks]
-Name: "desktopicon"; Description: {cm:CreateDesktopIcon}; GroupDescription: {cm:AdditionalIcons}
-
-[Languages]
-Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: Deutsch; MessagesFile: "compiler:Languages\\German.isl"
-Name: "fr"; MessagesFile: "compiler:Languages\\French.isl"
-
-[Setup]
-ShowLanguageDialog=auto
-AppName=EventGhost
-AppVerName=EventGhost %(VERSION)s
-DefaultDirName={pf}\\EventGhost
-DefaultGroupName=EventGhost
-Compression=lzma/ultra
-SolidCompression=yes
-InternalCompressLevel=ultra
-OutputDir=%(OUT_DIR)s
-OutputBaseFilename=%(OUT_FILE_BASE)s
-LicenseFile=%(TOOLS_DIR)s\\LICENSE.RTF
-DisableReadyPage=yes
-AppMutex=EventGhost:7EB106DC-468D-4345-9CFE-B0021039114B
-
-[InstallDelete]
-Type: filesandordirs; Name: "{app}\\eg"
-%(INSTALL_DELETE)s
-
-[Files]
-Source: "%(TRUNK)s\\*.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(TRUNK)s\\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "%(TRUNK)s\\lib\\*.*"; DestDir: "{app}\\lib"; Flags: ignoreversion recursesubdirs
-%(INSTALL_FILES)s
-Source: "%(TRUNK)s\\Example.xml"; DestDir: "{userappdata}\\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "%(TRUNK)s\\tools\\WebSite.url"; DestName: "EventGhost Web Site.url"; DestDir: "{group}"
-Source: "%(TRUNK)s\\tools\\WebForums.url"; DestName: "EventGhost Forums.url"; DestDir: "{group}"
-Source: "%(TRUNK)s\\tools\\WebWiki.url"; DestName: "EventGhost Wiki.url"; DestDir: "{group}"
-
-[Run]
-Filename: "{app}\\EventGhost.exe"; Parameters: "-install"
-
-[UninstallRun]
-Filename: "{app}\\EventGhost.exe"; Parameters: "-uninstall"
-
-[Run] 
-Filename: "{app}\\EventGhost.exe"; Flags: postinstall nowait skipifsilent 
-
-[Icons]
-Name: "{group}\\EventGhost"; Filename: "{app}\\EventGhost.exe"
-Name: "{group}\\Uninstall EventGhost"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\\EventGhost"; Filename: "{app}\\EventGhost.exe"; Tasks: desktopicon
-"""
-
-inno_update = """
-[Languages]
-Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: Deutsch; MessagesFile: "compiler:Languages\\German.isl"
-Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
-
-[Setup]
-ShowLanguageDialog=auto
-AppId=EventGhost
-AppName=EventGhost
-AppVerName=EventGhost-Update %(version)s build %(buildNum)s
-DefaultDirName={pf}\EventGhost
-DefaultGroupName=EventGhost
-Compression=lzma/max
-SolidCompression=yes
-InternalCompressLevel=max
-OutputDir=%(OUT_DIR)s
-OutputBaseFilename=%(OUT_FILE_BASE)s
-;DisableFinishedPage=yes
-DisableReadyPage=yes
-CreateUninstallRegKey=no
-UpdateUninstallLogAppName=no
-AppMutex=EventGhost:7EB106DC-468D-4345-9CFE-B0021039114B
-
-[Run]
-Filename: "{app}\\EventGhost.exe"; Parameters: "-install"
-
-[Run] 
-Filename: "{app}\\EventGhost.exe"; Flags: postinstall nowait skipifsilent 
-
-[InstallDelete]
-Type: filesandordirs; Name: "{app}\\eg"
-
-[Files]
-Source: "%(TRUNK)s\\*.exe"; DestDir: "{app}"; Flags: ignoreversion
-%(INSTALL_FILES)s
-Source: "%(TRUNK)s\\Example.xml"; DestDir: "{userappdata}\\EventGhost"; DestName: "MyConfig.xml"; Flags: onlyifdoesntexist uninsneveruninstall
-"""
-
-
-def InstallPy2exePatch():
-    # ModuleFinder can't handle runtime changes to __path__, but win32com 
-    # uses them, particularly for people who build from sources.  Hook this in.
-    try:
-        import modulefinder
-        import win32com
-        for p in win32com.__path__[1:]:
-            modulefinder.AddPackagePath("win32com", p)
-        for extra in ["win32com.shell"]:#,"win32com.shellcon","win32com.mapi"]:
-            __import__(extra)
-            m = sys.modules[extra]
-            for p in m.__path__[1:]:
-                modulefinder.AddPackagePath(extra, p)
-    except ImportError:
-        # no build path setup, no worries.
-        pass
-
-
 def CompileInnoScript(innoScriptPath):
     """
     Execute command line to compile the Inno Script File
     """
+    print "*** running Inno Setup ***"
     key = _winreg.OpenKey(
         _winreg.HKEY_LOCAL_MACHINE, 
         r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 5_is1"
     )
     installPath, _ = _winreg.QueryValueEx(key, "InstallLocation")
     _winreg.CloseKey(key)
-    return Execute(join(installPath, "ISCC.exe"), innoScriptPath)
-    
+    res = Execute(join(installPath, "ISCC.exe"), innoScriptPath)
+    return res
         
 
 def Execute(*args):
@@ -456,95 +377,98 @@ def MakeSourceArchive(outFile):
     svn.callback_ssl_server_trust_prompt = ssl_server_trust_prompt
     
     def callback_notify(event_dict):
-        print event_dict["path"][len(tmpDir)+1:]
+        print event_dict["path"][len(TMP_DIR)+1:]
     svn.callback_notify = callback_notify
     
-    svn.checkout(trunkDir, tmpDir)
+    svn.checkout(TRUNK_DIR, TMP_DIR)
     zipFile = zipfile.ZipFile(outFile, "w", zipfile.ZIP_DEFLATED)
-    for root, dirs, files in os.walk(tmpDir):
+    for root, dirs, files in os.walk(TMP_DIR):
         if '.svn' in dirs:
             dirs.remove('.svn')
         if "noinclude" in files:
             continue
         for file in files:
             filename = os.path.join(root, file)
-            arcname = filename[len(tmpDir)+1:]
+            arcname = filename[len(TMP_DIR)+1:]
             zipFile.write(filename, arcname)
             print "compressing", arcname
     zipFile.close()
-    svn.cleanup(tmpDir)
-    RemoveDirectory(tmpDir)
+    svn.cleanup(TMP_DIR)
+    RemoveDirectory(TMP_DIR)
 
 
+def InstallPy2exePatch():
+    # ModuleFinder can't handle runtime changes to __path__, but win32com 
+    # uses them, particularly for people who build from sources.  Hook this in.
+    try:
+        import modulefinder
+        import win32com
+        for p in win32com.__path__[1:]:
+            modulefinder.AddPackagePath("win32com", p)
+        for extra in ["win32com.shell"]:#,"win32com.shellcon","win32com.mapi"]:
+            __import__(extra)
+            m = sys.modules[extra]
+            for p in m.__path__[1:]:
+                modulefinder.AddPackagePath(extra, p)
+    except ImportError:
+        # no build path setup, no worries.
+        pass
+
+
+def CreateLibraryFiles():
+    from distutils.core import setup
+    InstallPy2exePatch()
+    RemoveDirectory(join(TRUNK_DIR, "lib"))
+    print "creating console exe"
+    setup(**consoleOptions)
+    print "creating main exe"
+    setup(**py2exeOptions)
+    print "copying DLLs"
+    pythonDir = dirname(sys.executable)
+    for dll in ROOT_DLLS:
+        if not os.path.exists(join(TRUNK_DIR, dll)):
+            copy(join(pythonDir, dll), TRUNK_DIR)
+    print "done!"
+    
+    
 def MakeInstaller():
     version = UpdateVersionFile()
-    class namespace:
-        PYTHON_DIR = dirname(sys.executable)
-        OUT_DIR = outDir
-        TRUNK = trunkDir
-        TOOLS_DIR = toolsDir
-        DIST = join(tmpDir, "dist")
-        VERSION = version.string
-    UpdateChangeLog(namespace)
+    NS.VERSION = version.string
+    NS.OUT_FILE_BASE = "EventGhost_%s_Setup" % version.string
+    UpdateChangeLog()
     
+    if Options.createSourceArchive:
+        MakeSourceArchive(join(OUT_DIR, "EventGhost_%s_Source.zip" % NS.VERSION))
+        
+    if Options.createLib:
+        CreateLibraryFiles()
+                    
     installDeleteDirs = []
-    for item in os.listdir(join(trunkDir, "plugins")):
+    for item in os.listdir(join(TRUNK_DIR, "plugins")):
         if item.startswith("."):
             continue
-        if os.path.isdir(join(trunkDir, "plugins", item)):
+        if os.path.isdir(join(TRUNK_DIR, "plugins", item)):
             installDeleteDirs.append(
                 'Type: filesandordirs; Name: "{app}\\plugins\\%s"' % item
             )
     installDelete = "\n".join(installDeleteDirs)
-    namespace.INSTALL_DELETE = installDelete
+    NS.INSTALL_DELETE = installDelete
     
-    if Options.createSourceArchive:
-        MakeSourceArchive(join(outDir, "EventGhost_%s_Source.zip" % namespace.VERSION))
-        
-    if Options.createLib:
-        from distutils.core import setup
-        InstallPy2exePatch()
-        RemoveDirectory(join(trunkDir, "lib"))
-        print "creating console exe"
-        setup(**consoleOptions)
-        print "creating main exe"
-        setup(**py2exeOptions)
-        print "copying DLLs"
-        pythonDir = dirname(sys.executable)
-        for dll in ROOT_DLLS:
-            if not os.path.exists(join(trunkDir, dll)):
-                copy(join(pythonDir, dll), trunkDir)
-        print "done!"
-                    
     installFiles = []
-    if Options.createUpdate:
-        for file in GetUpdateFiles():
-            installFiles.append(
-                'Source: "' + join(trunkDir, file) + '"; DestDir: "{app}\\' + dirname(file) + '";'
-            )
-        innoScriptPath = abspath(join(tmpDir, "Update.iss"))
-        template = inno_update
-        namespace.OUT_FILE_BASE = "EventGhost_%s_Update" % namespace.VERSION
-    else:
-        for file in GetSetupFiles():
-            installFiles.append(
-                'Source: "' + join(trunkDir, file) + '"; DestDir: "{app}\\' + dirname(file) + '";'
-            )
-        innoScriptPath = abspath(join(tmpDir, "Setup.iss"))
-        template = INNO_SCRIPT_TEMPLATE
-        namespace.OUT_FILE_BASE = "EventGhost_%s_Setup" % namespace.VERSION
-        
-    namespace.INSTALL_FILES = "\n".join(installFiles)  
+    for file in GetSetupFiles():
+        installFiles.append(
+            'Source: "%s"; DestDir: "{app}\\%s";' % (join(TRUNK_DIR, file), dirname(file))
+        )
+    NS.INSTALL_FILES = "\n".join(installFiles)  
     
+    innoScriptPath = abspath(join(TMP_DIR, "Setup.iss"))
     fd = open(innoScriptPath, "w")
-    fd.write(template % namespace.__dict__)
+    fd.write(INNO_SCRIPT_TEMPLATE % NS.__dict__)
     fd.close()
     
-    print "Calling Inno Setup Compiler"
     CompileInnoScript(innoScriptPath)
-    print "Building installer done!"
-    RemoveDirectory(tmpDir)
-    return join(outDir, namespace.OUT_FILE_BASE + ".exe")
+    RemoveDirectory(TMP_DIR)
+    return join(OUT_DIR, NS.OUT_FILE_BASE + ".exe")
 
 
 
@@ -592,35 +516,36 @@ class Speedometer:
             self.rate = 0
         
         
+class FileProgressReader:
+    
+    def __init__(self, filepath):
+        self.size = os.path.getsize(filepath)
+        self.fd = open(filepath, "rb")
+        self.pos = 0
+        self.startTime = time.clock()
+        self.speedo = Speedometer()
+        
+    def read(self, size):
+        if size + self.pos > self.size:
+            size = self.size - self.pos
+        self.speedo.Add(size)
+        remaining = (self.size - self.pos + size) / self.speedo.rate
+        percent = 100.0 * self.pos / self.size
+        print "%d%%" % percent, "%0.2f KiB/s" % (self.speedo.rate / 1024), "%0.2fs" % remaining
+        self.pos += size
+        return self.fd.read(size)
+    
+    def close(self):
+        self.fd.close()
+        elapsed = (time.clock() - self.startTime)
+        print "File uploaded in %0.2f seconds" % elapsed
+        print "Average speed: %0.2f KiB/s" % (self.size / (elapsed * 1024))
+            
+
 def UploadFile(filename, url):
     aborted = False
-    speedo = Speedometer()
-    
-    class progress:
-        def __init__(self, filepath):
-            self.size = os.path.getsize(filepath)
-            self.fd = open(filepath, "rb")
-            self.pos = 0
-            self.startTime = time.clock()
-            
-        def read(self, size):
-            if size + self.pos > self.size:
-                size = self.size - self.pos
-            speedo.Add(size)
-            remaining = (self.size - self.pos + size) / speedo.rate
-            percent = 100.0 * self.pos / self.size
-            print "%d%%" % percent, "%0.2f KiB/s" % (speedo.rate / 1024), "%0.2fs" % remaining
-            self.pos += size
-            return self.fd.read(size)
-        
-        def close(self):
-            self.fd.close()
-            elapsed = (time.clock() - self.startTime)
-            print "File uploaded in %0.2f seconds" % elapsed
-            print "Average speed: %0.2f KiB/s" % (self.size / (elapsed * 1024))
-            
     urlComponents = urlparse(url)
-    fd = progress(filename)
+    fd = FileProgressReader(filename)
     print "Connecting: %s" % urlComponents.hostname
     ftp = FTP(
         urlComponents.hostname, 
@@ -689,13 +614,13 @@ class MainDialog(wx.Dialog):
         config = ConfigParser.ConfigParser()
         # make ConfigParser case-sensitive
         config.optionxform = str
-        config.read(join(toolsDir, "MakeInstaller.ini"))
+        config.read(join(TOOLS_DIR, "MakeInstaller.ini"))
         if not config.has_section("Settings"):
             config.add_section("Settings")
         for label, ident, value in OptionsList:
             value = getattr(Options, ident)
             config.set("Settings", ident, value)
-        fd = open(join(toolsDir, "MakeInstaller.ini"), "w")
+        fd = open(join(TOOLS_DIR, "MakeInstaller.ini"), "w")
         config.write(fd)
         fd.close()
         
@@ -703,7 +628,7 @@ class MainDialog(wx.Dialog):
     def LoadSettings(self):
         global OptionsList
         config = ConfigParser.ConfigParser()
-        config.read(join(toolsDir, "MakeInstaller.ini"))
+        config.read(join(TOOLS_DIR, "MakeInstaller.ini"))
         if config.has_option("Settings", "ftpUrl"):
             self.url = config.get("Settings", "ftpUrl")
         else:

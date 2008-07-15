@@ -26,6 +26,7 @@ from TreeItem import HINT_NO_DROP, HINT_MOVE_INSIDE, HINT_MOVE_AFTER
 
 class AutostartItem(MacroItem):
     xmlTag = "Autostart"
+    typeName = "autostart"
     icon = eg.Icons.PathIcon("images/Execute.png")
     isDeactivatable = False
     isRenameable = False

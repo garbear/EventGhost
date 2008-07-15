@@ -27,6 +27,7 @@ from TreeItem import HINT_NO_DROP, HINT_MOVE_INSIDE
 
 class RootItem(ContainerItem):
     xmlTag = "EventGhost"    
+    typeName = "root"
     icon = eg.Icons.PathIcon("images/root.png")
     time = None
     guid = None

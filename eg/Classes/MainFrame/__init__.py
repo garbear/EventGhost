@@ -48,6 +48,10 @@ ADD_MACRO_ICON = CreateBitmapOnTopOfIcon(ADD_ICON, eg.Icons.MACRO_ICON)
 ADD_EVENT_ICON = CreateBitmapOnTopOfIcon(ADD_ICON, eg.Icons.EVENT_ICON)
 ADD_ACTION_ICON = CreateBitmapOnTopOfIcon(ADD_ICON, eg.Icons.ACTION_ICON)
 RESET_ICON = eg.Icons.PathIcon('images/error.png').GetBitmap()
+WINDOW_STYLE = (
+    wx.MINIMIZE_BOX|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER|wx.SYSTEM_MENU|
+    wx.CAPTION|wx.CLOSE_BOX|wx.CLIP_CHILDREN|wx.TAB_TRAVERSAL
+)
 
 Text = eg.text.MainFrame
 
@@ -82,24 +86,6 @@ class MainFrame(wx.Frame):
         self.iconState = 0
         self.findDialog = None
         self.openDialogs = []
-        self.menuState = eg.Bunch(
-            addEvent = False,
-            ddAction = False,
-            configure = False,
-            execute = False,
-            rename = False,
-            disable = False,
-        )
-        self.style=(
-            wx.MINIMIZE_BOX
-            |wx.MAXIMIZE_BOX
-            |wx.RESIZE_BORDER
-            |wx.SYSTEM_MENU
-            |wx.CAPTION
-            |wx.CLOSE_BOX
-            |wx.CLIP_CHILDREN
-            |wx.TAB_TRAVERSAL
-        )
         wx.Frame.__init__(
             self, 
             None, 
@@ -107,7 +93,7 @@ class MainFrame(wx.Frame):
             eg.APP_NAME, 
             pos=config.position, 
             size=(1, 1), 
-            style=self.style
+            style=WINDOW_STYLE
         )
         self.SetMinSize((400, 200))
         document.frame = self
@@ -170,7 +156,6 @@ class MainFrame(wx.Frame):
             eg.config.buildNum == eg.buildNum 
             and config.perspective is not None
         ):
-            #pass
             auiManager.LoadPerspective(config.perspective, False)
         auiManager.GetArtProvider().SetMetric(wx.aui.AUI_DOCKART_PANE_BORDER_SIZE, 0)
         #auiManager.SetFlags(auiManager.GetFlags() ^ wx.aui.AUI_MGR_ALLOW_ACTIVE_PANE)
@@ -328,15 +313,15 @@ class MainFrame(wx.Frame):
                 
         # configuration menu
         Add = menuBar.AddMenu("Configuration").AddItem
-        menuItems.addPlugin = Add("AddPlugin", image=ADD_PLUGIN_ICON)
-        menuItems.addFolder = Add("AddFolder", image=ADD_FOLDER_ICON)
-        menuItems.addMacro = Add("AddMacro", image=ADD_MACRO_ICON)
-        menuItems.addEvent = Add("AddEvent", image=ADD_EVENT_ICON)
-        menuItems.addAction = Add("AddAction", image=ADD_ACTION_ICON)
+        Add("AddPlugin", image=ADD_PLUGIN_ICON)
+        Add("AddFolder", image=ADD_FOLDER_ICON)
+        Add("AddMacro", image=ADD_MACRO_ICON)
+        Add("AddEvent", image=ADD_EVENT_ICON)
+        Add("AddAction", image=ADD_ACTION_ICON)
         Add()
-        menuItems.configure = Add("Configure", hotkey="Return")
-        menuItems.rename = Add("Rename", hotkey="F2")
-        menuItems.execute = Add("Execute", hotkey="F5")
+        Add("Configure", hotkey="Return")
+        Add("Rename", hotkey="F2")
+        Add("Execute", hotkey="F5")
         Add()
         menuItems.disabled = Add("Disabled", hotkey="Ctrl+D", kind=wx.ITEM_CHECK)
         
@@ -564,7 +549,7 @@ class MainFrame(wx.Frame):
     def AddDialog(self, dialog):
         self.openDialogs.append(dialog)
         dialog.Bind(wx.EVT_WINDOW_DESTROY, self.OnDialogDestroy)
-        self.SetWindowStyleFlag(~(wx.MINIMIZE_BOX|wx.CLOSE_BOX) & self.style)
+        self.SetWindowStyleFlag(~(wx.MINIMIZE_BOX|wx.CLOSE_BOX) & WINDOW_STYLE)
         
         
     @eg.LogIt
@@ -572,7 +557,7 @@ class MainFrame(wx.Frame):
         dialog = event.GetWindow()
         self.openDialogs.remove(dialog)
         if len(self.openDialogs) == 0:
-            self.SetWindowStyleFlag(self.style)
+            self.SetWindowStyleFlag(WINDOW_STYLE)
     
 
     def GetEditCmdState(self, focus):
@@ -602,28 +587,12 @@ class MainFrame(wx.Frame):
         
     
     def OnTreeSelectionEvent(self, selection):
-        isFolder = selection.__class__ in (
-            self.document.FolderItem, 
-            self.document.RootItem
-        )
-        menuState = self.menuState
-        menuState.addEvent = bool(selection.DropTest(EventItem))
-        menuState.addAction = not isFolder
-        menuState.configure = selection.isConfigurable
-        menuState.execute = selection.isExecutable and selection.isEnabled
-        menuState.rename = selection.isRenameable
-        menuState.disabled = selection.isDeactivatable
-        
         toolBarButton = self.toolBar.buttons
         canCut, canCopy, canPaste, canDelete =\
             self.GetEditCmdState(self.lastFocus)
         toolBarButton.cut.Enable(canCut)
         toolBarButton.copy.Enable(canCopy)
         toolBarButton.paste.Enable(canPaste)
-        toolBarButton.addAction.Enable(menuState.addAction)
-        toolBarButton.addEvent.Enable(menuState.addEvent)
-        toolBarButton.disabled.Enable(menuState.disabled)
-        toolBarButton.execute.Enable(menuState.execute)
         
     
     def OnUndoEvent(self, hasUndos, hasRedos, undoName, redoName):
@@ -644,13 +613,6 @@ class MainFrame(wx.Frame):
         menuItems.copy.Enable(canCopy)
         menuItems.paste.Enable(canPaste)
         menuItems.delete.Enable(canDelete)
-        menuState = self.menuState
-        menuItems.addAction.Enable(menuState.addAction)
-        menuItems.addEvent.Enable(menuState.addEvent)
-        menuItems.configure.Enable(menuState.configure)
-        menuItems.execute.Enable(menuState.execute)
-        menuItems.rename.Enable(menuState.rename)
-        menuItems.disabled.Enable(menuState.disabled)
         menuItems.disabled.Check(
             self.document.selection and not self.document.selection.isEnabled
         )
@@ -661,6 +623,12 @@ class MainFrame(wx.Frame):
         self.SetupEditMenu(self.menuItems)            
             
             
+    def DisplayError(self, message, caption="EventGhost Error"):
+        dialog = wx.MessageDialog(self, message, caption, wx.OK)
+        dialog.ShowModal()
+        dialog.Destroy()
+
+
     def UpdateViewOptions(self):
         expandOnEvents = (
             not self.IsIconized()
@@ -783,6 +751,16 @@ class MainFrame(wx.Frame):
             
             
     def OnCmdAddEvent(self, event):
+        # if the current selection can't add an event item, we display a small
+        # error message
+        if not self.document.selection.DropTest(EventItem):
+            self.DisplayError(
+                "You can't add an event to an item of the type \"%s\".\n"
+                "Please select a macro or a child item of a macro to add an event item to the macro." % self.document.selection.typeName, 
+                "Can't add an event here here"
+            )
+            return
+            
         eg.UndoHandler.NewEvent().Do(self.document)
                 
                 
@@ -795,6 +773,11 @@ class MainFrame(wx.Frame):
         
     
     def OnCmdAddAction(self, event):
+        # if a folder is selected, we can't add an action here, so we display
+        # small error message.
+        if not self.document.selection.DropTest(ActionItem):
+            self.DisplayError("Can't add an action here")
+            return
         # let the user choose an action
         result = eg.AddActionDialog.GetModalResult(self)
         # if user canceled the dialog, take a quick exit
@@ -805,20 +788,35 @@ class MainFrame(wx.Frame):
         
     
     def OnCmdRename(self, event):
-        self.treeCtrl.SetFocus()
-        self.treeCtrl.EditLabel(self.treeCtrl.GetSelection())
+        if selection.isRenameable:
+            self.treeCtrl.SetFocus()
+            self.treeCtrl.EditLabel(self.treeCtrl.GetSelection())
+        else:
+            self.DisplayError("This item cannot be renamed!")
 
 
     def OnCmdConfigure(self, event):
-        eg.UndoHandler.Configure().Try(self.document)
-
-
+        if self.document.selection.isConfigurable:
+            eg.UndoHandler.Configure().Try(self.document)
+        else:
+            self.DisplayError("This item can't be configured.")
+            
+            
     def OnCmdExecute(self, event):
-        self.document.ExecuteSelected().SetShouldEnd()
+        selection = self.document.selection
+        if not selection.isExecutable:
+            self.DisplayError("This item can't be executed")
+        elif not selection.isEnabled:
+            self.DisplayError("This item can't be executed, because it is not enabled.")
+        else:
+            self.document.ExecuteSelected().SetShouldEnd()
 
 
     def OnCmdDisabled(self, event):
-        eg.UndoHandler.ToggleEnable(self.document)
+        if self.document.selection.isDeactivatable:
+            eg.UndoHandler.ToggleEnable(self.document)
+        else:
+            self.DisplayError("This item can't be disabled.")
 
 
     def OnCmdHideShowToolbar(self, event):
@@ -959,16 +957,16 @@ class MainFrame(wx.Frame):
     
     #@eg.AsGreenlet
     def OnCmdAddEventDialog(self, event):
-        frame = eg.TestFrame()
-        return
-        dialog = eg.AddEventDialog.Create(self)
-        while True:
-            result = dialog.GetResult()
-            if result is None:
-                break
-            label = result[0][0]
-            eg.UndoHandler.NewEvent().Do(self.document, label)
-        #eg.AddEventDialog.GetModalResult(self)
+#        frame = eg.TestFrame()
+#        return
+#        dialog = eg.AddEventDialog.Create(self)
+#        while True:
+#            result = dialog.GetResult()
+#            if result is None:
+#                break
+#            label = result[0][0]
+#            eg.UndoHandler.NewEvent().Do(self.document, label)
+        eg.AddEventDialog.GetModalResult(self)
         #eg.NamespaceTree.Test()
 
         

@@ -26,7 +26,7 @@ class Rename:
     
     def __init__(self, document, item, text):
         self.oldText = item.name
-        self.positionData = item.GetPositionData()
+        self.positionData = eg.TreePosition(item)
         self.text = text
         item.RenameTo(text)
         document.AppendUndoHandler(self)

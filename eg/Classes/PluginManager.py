@@ -26,7 +26,6 @@ import cPickle as pickle
 from os import stat
 from os.path import isdir, join, exists
 
-
         
 class RegisterPluginException(Exception):
     """
@@ -227,5 +226,3 @@ class PluginManager:
         infoList.sort(key=lambda x: x.name.lower())
         return infoList
         
-
-
