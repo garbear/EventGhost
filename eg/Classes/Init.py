@@ -34,27 +34,29 @@ from functools import partial
 class EventGhost(object):
     
     def result_fget(self):
-        return self._result
+        return eg._result
     
     
     def result_fset(self, value):
-        self._result = value
+        eg._result = value
         
     result = property(result_fget, result_fset)
     
     
     def __init__(self, args):
-        self._result = None
-        global eg
-        eg = self
-        sys.modules["eg"] = self
-        self.__path__ = [os.path.abspath("eg")]
+#        global eg
+#        eg = self
+#        sys.modules["eg"] = self
+#        eg.__path__ = [os.path.abspath("eg")]
         
         # add 'eg' and 'wx' to the builtin name space of every module
         import __builtin__
-        __builtin__.__dict__["eg"] = self
+        #__builtin__.__dict__["eg"] = self
+        eg = __builtin__.eg
         import wx
         __builtin__.__dict__["wx"] = wx
+        eg.__dict__.update(self.__class__.__dict__)
+        self._result = None
         import wx.lib.newevent
         eg.ValueChangedEvent, eg.EVT_VALUE_CHANGED = wx.lib.newevent.NewCommandEvent()
         
@@ -71,18 +73,13 @@ class EventGhost(object):
             eg.CONFIG_DIR = os.path.join(eg.folderPath.RoamingAppData, eg.APP_NAME)
         else:
             eg.CONFIG_DIR = args.configDir
-        eg.CORE_PLUGINS = (
-            "EventGhost",
-            "System",
-            "Window",
-            "Mouse",
-        )
+        eg.CORE_PLUGINS = ("EventGhost", "System", "Window", "Mouse")
         eg.ID_TEST = wx.NewId()
         
         # we create a package 'pluginImport' and set its path to the plugin-dir
         # se we can simply use __import__ to load a plugin file 
         pluginPackage = imp.new_module("pluginImport")
-        pluginPackage.__path__ = [self.PLUGIN_DIR]
+        pluginPackage.__path__ = [eg.PLUGIN_DIR]
         sys.modules["pluginImport"] = pluginPackage
         
         # initialize PIL's Image module
@@ -93,11 +90,12 @@ class EventGhost(object):
         import GifImagePlugin
         Image._initialized = 2  
         
-        import Utils
-        for name in Utils.__all__:
-            setattr(eg, name, getattr(Utils, name))
+        #import Utils
+        sys.modules["eg.Utils"] = eg.Utils
+        for name in eg.Utils.__all__:
+            setattr(eg, name, getattr(eg.Utils, name))
                 
-        #self.document = None
+        #eg.document = None
         eg.result = None
         eg.event = None
         eg.eventTable = {}
@@ -105,8 +103,8 @@ class EventGhost(object):
         eg.plugins = eg.Bunch()
         eg.pluginClassInfo = {}
         
-        eg.globals = Utils.Bunch()
-        eg.globals.eg = self
+        eg.globals = eg.Bunch()
+        eg.globals.eg = eg
         eg.mainThread = threading.currentThread()
         eg.programCounter = None
         eg.programReturnStack = []
@@ -129,26 +127,24 @@ class EventGhost(object):
         import eg.Icons
         
         eg.log = eg.Log()
-        eg.Print = self.log.Print
-        eg.PrintError = self.log.PrintError
-        eg.PrintNotice = self.log.PrintNotice
-        eg.PrintTraceback = self.log.PrintTraceback
-        eg.PrintDebugNotice = self.log.PrintDebugNotice
-        eg.PrintStack = self.log.PrintStack
+        eg.Print = eg.log.Print
+        eg.PrintError = eg.log.PrintError
+        eg.PrintNotice = eg.log.PrintNotice
+        eg.PrintTraceback = eg.log.PrintTraceback
+        eg.PrintDebugNotice = eg.log.PrintDebugNotice
+        eg.PrintStack = eg.log.PrintStack
             
         # redirect all wxPython error messages to our log
         class MyLog(wx.PyLog):
             def DoLog(self2, level, msg, timestamp):
-                if (level >= 6):# and not self.debugLevel:
+                if (level >= 6):# and not eg.debugLevel:
                     return
                 sys.stderr.write("Error%d: %s\n" % (level, msg))
         wx.Log.SetActiveTarget(MyLog())
 
         from LanguageTools import LoadStrings
         eg.text = LoadStrings(eg.config.language)
-
-        from Text import Text
-        Utils.SetClass(self.text, Text)
+        eg.SetClass(eg.text, eg.TextStrings)
 
         eg.Exit = sys.exit
         
@@ -186,7 +182,7 @@ class EventGhost(object):
                 eg.StartGui()
 
         
-    def StartGui(self):
+    def StartGui():
         global eg
         #Bit of a dance to force comtypes generated interfaces in to our directory
         import comtypes.client
@@ -221,29 +217,29 @@ class EventGhost(object):
         eg.eventThread = eg.EventThread()
         eg.colour = eg.Colour()
         
-        self.scheduler.start()
-        self.messageReceiver.Start()
+        eg.scheduler.start()
+        eg.messageReceiver.Start()
 
-        self.focusEvent = eg.EventHook()
+        eg.focusEvent = eg.EventHook()
         
         if not (eg.config.hideOnStartup or eg.startupArguments.hideOnStartup):
             eg.document.ShowFrame()
             
-        self.SetProcessingState = eg.taskBarIcon.SetProcessingState
+        eg.SetProcessingState = eg.taskBarIcon.SetProcessingState
 
-        self.actionThread.Start()
+        eg.actionThread.Start()
 
-        eg.eventThread.startupEvent = self.startupArguments.startupEvent
-        self.TriggerEvent = eg.eventThread.TriggerEvent
-        self.TriggerEnduringEvent = eg.eventThread.TriggerEnduringEvent
+        eg.eventThread.startupEvent = eg.startupArguments.startupEvent
+        eg.TriggerEvent = eg.eventThread.TriggerEvent
+        eg.TriggerEnduringEvent = eg.eventThread.TriggerEnduringEvent
                     
-        config = self.config
+        config = eg.config
 
-        startupFile = self.startupArguments.startupFile
+        startupFile = eg.startupArguments.startupFile
         autoloadFilePath = config.autoloadFilePath
         if startupFile is None and config.useAutoloadFile and autoloadFilePath:
             if not os.path.exists(autoloadFilePath):
-                eg.PrintError(self.text.Error.FileNotFound % autoloadFilePath)
+                eg.PrintError(eg.text.Error.FileNotFound % autoloadFilePath)
             else:
                 startupFile = autoloadFilePath
                 
@@ -256,34 +252,34 @@ class EventGhost(object):
                 config.lastUpdateCheckDate = today
                 wx.CallAfter(eg.CheckUpdate.Start)
                 
-        self.Print(self.text.MainFrame.Logger.welcomeText)
+        eg.Print(eg.text.MainFrame.Logger.welcomeText)
 
             
-    def __getattr__(self, name):
-        mod = __import__("eg.Classes." + name, globals(), locals(), [name], 0)
-        attr = getattr(mod, name)
-        self.__dict__[name] = attr
-        return attr
-    
-    
-    def __delattr__(self, name):
-        eg.PrintError("Deletion of eg.%s is forbidden!" % name)
-    
-    
-    def DeInit(self):
-        self.PrintDebugNotice("stopping threads")
-        self.actionThread.CallWait(self.actionThread.StopSession)
-        self.scheduler.Stop()
-        self.actionThread.Stop()
-        self.eventThread.Stop()
-        self.dummyAsyncoreDispatcher.close()
+#    def __getattr__(self, name):
+#        mod = __import__("eg.Classes." + name, globals(), locals(), [name], 0)
+#        attr = getattr(mod, name)
+#        eg.__dict__[name] = attr
+#        return attr
+#    
+#    
+#    def __delattr__(self, name):
+#        eg.PrintError("Deletion of eg.%s is forbidden!" % name)
+#    
+#    
+    def DeInit():
+        eg.PrintDebugNotice("stopping threads")
+        eg.actionThread.CallWait(eg.actionThread.StopSession)
+        eg.scheduler.Stop()
+        eg.actionThread.Stop()
+        eg.eventThread.Stop()
+        eg.dummyAsyncoreDispatcher.close()
         
-        self.PrintDebugNotice("shutting down")
-        self.config.Save()
-        self.messageReceiver.Close()
+        eg.PrintDebugNotice("shutting down")
+        eg.config.Save()
+        eg.messageReceiver.Close()
         
         
-    def RestartAsyncore(self):
+    def RestartAsyncore():
         """ Informs the asyncore loop of a new socket to handle. """
         oldDispatcher = eg.dummyAsyncoreDispatcher
         dispatcher = asyncore.dispatcher()
@@ -293,11 +289,11 @@ class EventGhost(object):
             oldDispatcher.close()
     
     
-    def Wait(self, secs, raiseException=True):
+    def Wait(secs, raiseException=True):
         while secs > 0.0:
-            if self.stopExecutionFlag:
+            if eg.stopExecutionFlag:
                 if raiseException:
-                    raise self.StopException("Execution interrupted by the user.")
+                    raise eg.StopException("Execution interrupted by the user.")
                 else:
                     return False
             if secs > 0.1:
@@ -308,8 +304,8 @@ class EventGhost(object):
         return True
         
         
-    def HasActiveHandler(self, eventstring):
-        for eventHandler in self.eventTable.get(eventstring, []):
+    def HasActiveHandler(eventstring):
+        for eventHandler in eg.eventTable.get(eventstring, []):
             obj = eventHandler
             while obj:
                 if not obj.isEnabled:
@@ -320,15 +316,15 @@ class EventGhost(object):
         return False
 
 
-    def Bind(self, eventString, eventFunc):
-        eventTable = self.eventTable2
+    def Bind(eventString, eventFunc):
+        eventTable = eg.eventTable2
         if eventString not in eventTable:
             eventTable[eventString] = []
         eventTable[eventString].append(eventFunc)
     
                 
-    def Unbind(self, eventString, eventFunc):
-        eventTable = self.eventTable2
+    def Unbind(eventString, eventFunc):
+        eventTable = eg.eventTable2
         if eventString not in eventTable:
             return
         try:
@@ -339,35 +335,35 @@ class EventGhost(object):
             del eventTable[eventString]
 
 
-    def RunProgram(self):
-        self.stopExecutionFlag = False
-        del self.programReturnStack[:]
-        while self.programCounter is not None:
-            programCounter = self.programCounter
+    def RunProgram():
+        eg.stopExecutionFlag = False
+        del eg.programReturnStack[:]
+        while eg.programCounter is not None:
+            programCounter = eg.programCounter
             item, idx = programCounter
             item.Execute()
-            if self.programCounter == programCounter:
+            if eg.programCounter == programCounter:
                 # program counter has not changed. Ask the parent for the next
                 # item.
                 if isinstance(item.parent, eg.MacroItem):
-                    self.programCounter = item.parent.GetNextChild(idx)
+                    eg.programCounter = item.parent.GetNextChild(idx)
                 else:
-                    self.programCounter = None
+                    eg.programCounter = None
                 
-            while self.programCounter is None and self.programReturnStack:
+            while eg.programCounter is None and eg.programReturnStack:
                 # we have no next item in this level. So look in the return 
                 # stack if any return has to be executed
-                item, idx = self.programReturnStack.pop()
-                self.programCounter = item.parent.GetNextChild(idx)
+                item, idx = eg.programReturnStack.pop()
+                eg.programCounter = item.parent.GetNextChild(idx)
 
 
-    def StopMacro(self, ignoreReturn=False):
-        self.programCounter = None
+    def StopMacro(ignoreReturn=False):
+        eg.programCounter = None
         if ignoreReturn:
-            del self.programReturnStack[:]
+            del eg.programReturnStack[:]
         
         
-    def CallWait(self, func):
+    def CallWait(func):
         result = [None]
         event = threading.Event()
         def CallWaitWrapper():
@@ -380,8 +376,8 @@ class EventGhost(object):
         return result[0]
             
             
-    def GetConfig(self, searchPath, defaultCls):
-        config = self.config
+    def GetConfig(searchPath, defaultCls):
+        config = eg.config
         parts = searchPath.split(".")
         for part in parts[:-1]:
             config = config.SetDefault(part, eg.Bunch)

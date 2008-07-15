@@ -20,7 +20,7 @@
 # $LastChangedRevision$
 # $LastChangedBy$
 
-class Text:
+class TextStrings:
     class General:
         configTree = "Configuration Tree"
         deleteQuestion = "Are you sure you want to delete this item?"

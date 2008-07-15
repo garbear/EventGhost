@@ -40,7 +40,7 @@ os.chdir(mainDir)
 
 # append our pathes to sys.path
 sys.path.append(join(mainDir, "eg"))
-sys.path.append(join(mainDir, "plugins"))
+#sys.path.append(join(mainDir, "plugins"))
 
 # determine the commadline parameters
 class args:
@@ -63,8 +63,7 @@ while True:
         break
     arg = argv[i].lower()
     if arg == "-n" or arg == "-netsend":
-        import NetworkSend
-        NetworkSend.Main(argv[i+1:])
+        eg.NetworkSend.Main(argv[i+1:])
         sys.exit(0)
     elif arg == '-debug':
         args.debugLevel = 1
@@ -76,6 +75,7 @@ while True:
         import compileall
         compileall.compile_dir(mainDir)
         args.install = True
+        sys.exit(0)
     elif arg == '-uninstall':
         for root, dirs, files in os.walk(mainDir):
             for name in files:
@@ -129,11 +129,13 @@ if (not args.allowMultiLoad) and (not args.translate):
             e.TriggerEvent(args.startupEvent[0], args.startupEvent[1])
         else:
             e.BringToFront()
-        ctypes.windll.kernel32.ExitProcess(0)		
+        ctypes.windll.kernel32.ExitProcess(0)        
     
 
+def Main():
+    pass
 from Init import EventGhost
-eg = EventGhost(args)
-if not args.install:
-    eg.app.MainLoop()
+EventGhost(args)
+#if not args.install:
+#    eg.app.MainLoop()
 #ctypes.windll.kernel32.ExitProcess(0)
