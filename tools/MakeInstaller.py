@@ -294,7 +294,7 @@ py2exeOptions = dict(
                 "msvcr71.dll"
             ],
             dist_dir = TRUNK_DIR,
-            custom_boot_script=join(TRUNK_DIR, "eg", "Py2ExeBootScript.py")
+            custom_boot_script=join(TOOLS_DIR, "Py2ExeBootScript.py")
         )
     ),
     # The lib directory contains everything except the executables and the python dll.

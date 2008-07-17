@@ -89,27 +89,8 @@ import SensLogon
 ourProcessId = GetCurrentProcessId()
 
 class Text:
-    class MonitorGroup:
-        name = "Display"
-        description = \
-            "These actions control the powerstate of the computers "\
-            "display."
-    
-    class SoundGroup:
-        name = "Sound Card"
-        description = \
-            "These actions control the souncard of your computer."
-
-    class PowerGroup:
-        name = "Power Management"
-        description = (
-            "These actions suspends, hibernates, reboots or shutsdown "
-            "the computer. Can also lock the workstation and logoff the "
-            "current user."
-        )
     forced   = "Forced: %s"
     forcedCB = "Force close of all programs"
-    
     RegistryGroup = Registry.Text
 
 
@@ -145,9 +126,10 @@ class System(eg.PluginClass):
         self.AddAction(ResetIdleTimer)
         
         group = self.AddGroup(
-            text.SoundGroup.name, 
-            text.SoundGroup.description,
-            "icons/SoundCard"
+            "Sound Card", 
+            "These actions control the soundcard of your computer.",
+            "icons/SoundCard",
+            identifier="SoundGroup"
         )
         group.AddAction(MuteOn)
         group.AddAction(MuteOff)
@@ -157,9 +139,10 @@ class System(eg.PluginClass):
         group.AddAction(PlaySound)
         
         group = self.AddGroup(
-            text.MonitorGroup.name,
-            text.MonitorGroup.description,
-            "icons/Display"
+            "Display",
+            "These actions control the powerstate of the computer's display device.",
+            "icons/Display",
+            "MonitorGroup"
         )
         group.AddAction(StartScreenSaver)
         group.AddAction(MonitorStandby)
@@ -171,9 +154,14 @@ class System(eg.PluginClass):
         group.AddAction(SetDisplayPreset)
 
         group = self.AddGroup(
-            text.PowerGroup.name,
-            text.PowerGroup.description,
-            "icons/Shutdown"
+            "Power Management",
+            (
+                "These actions suspends, hibernates, reboots or shutsdown "
+                "the computer. Can also lock the workstation and logoff the "
+                "current user."
+            ),
+            "icons/Shutdown",
+            "PowerGroup"
         )
         group.AddAction(PowerDown)
         group.AddAction(Reboot)

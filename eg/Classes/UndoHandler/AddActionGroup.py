@@ -51,7 +51,7 @@ class AddActionGroup(eg.UndoHandler.NewItem):
                         ),
                     )
             return folderItem
-        folderItem = Traverse(parentItem, pluginItem.executable.info.actionGroup)
+        folderItem = Traverse(parentItem, pluginItem.info.actionGroup)
         self.StoreItem(folderItem)
         folderItem.Select()
         folderItem.tree.Expand(folderItem.id)
