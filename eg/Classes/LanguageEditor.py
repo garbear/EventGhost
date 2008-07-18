@@ -24,8 +24,6 @@ import types
 import os
 import codecs
 
-from LanguageTools import languageNames
-
 
 class UnassignedValue:
     pass
@@ -178,13 +176,14 @@ class LanguageEditor(wx.Frame):
         disabledColour = rightPanel.GetBackgroundColour()
         sizer = wx.BoxSizer(wx.VERTICAL)
                 
-        langKeys = sorted(languageNames, key=languageNames.get)
-        langNames = [languageNames[k] for k in langKeys]
+        LANGUAGE_NAMES = eg.Translation.LANGUAGE_NAMES
+        langKeys = sorted(LANGUAGE_NAMES, key=LANGUAGE_NAMES.get)
+        langNames = [LANGUAGE_NAMES[k] for k in langKeys]
             
         languageList = ["en_EN"]
         for item in os.listdir("languages"):
             name, ext = os.path.splitext(item)
-            if ext == ".py" and name in languageNames:
+            if ext == ".py" and name in LANGUAGE_NAMES:
                 x = langKeys.index(name)
 #                languageChoiceCtrl.SetString(
 #                    x,
@@ -280,7 +279,7 @@ class LanguageEditor(wx.Frame):
         self.isDirty = False
         self.SetTitle(
             "EventGhost Language Editor - %s [%s]" % 
-                (languageNames[language], language)
+                (eg.Translation.LANGUAGE_NAMES[language], language)
         )
         tree = self.tree
         tree.Unbind(wx.EVT_TREE_SEL_CHANGING)

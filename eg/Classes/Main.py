@@ -134,8 +134,5 @@ if (not args.allowMultiLoad) and (not args.translate):
 
 def Main():
     pass
-from Init import EventGhost
-EventGhost(args)
-#if not args.install:
-#    eg.app.MainLoop()
-#ctypes.windll.kernel32.ExitProcess(0)
+
+eg.Init(args)

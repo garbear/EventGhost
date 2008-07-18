@@ -22,10 +22,8 @@
 
 from types import InstanceType
 
-from eg.Utils import SetClass
 
-
-class TextTranslation(object):
+class Translation(object):
 
     LANGUAGE_NAMES = {
         "aa_AA": "Afar",

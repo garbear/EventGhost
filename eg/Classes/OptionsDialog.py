@@ -25,7 +25,6 @@ import sys
 
 from wx.combo import BitmapComboBox
 
-from LanguageTools import languageNames
 
 class Text(eg.TranslatableStrings):
     Title = "Options"
@@ -62,11 +61,11 @@ class OptionsDialog(eg.Dialog):
         languageList = ["en_EN"]
         for item in os.listdir("Languages"):
             name, ext = os.path.splitext(item)
-            if ext == ".py" and name in languageNames:
+            if ext == ".py" and name in eg.Translation.LANGUAGE_NAMES:
                 languageList.append(name)
         languageList.sort()
         languageNameList = [
-            languageNames[x].decode("UTF-8") for x in languageList
+            eg.Translation.LANGUAGE_NAMES[x].decode("UTF-8") for x in languageList
         ]
         notebook = wx.Notebook(self, -1)
         page1 = eg.Panel(notebook)

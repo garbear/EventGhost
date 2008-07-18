@@ -26,10 +26,14 @@
 :undocumented: gIconCache, DISABLED_PIL, FOLDER_PIL, PLUGIN_PIL, ACTION_PIL
 """
 
+import sys
 from os.path import abspath
 from base64 import b64decode
 from cStringIO import StringIO
 import Image
+
+Icons = sys.modules[__name__]
+sys.modules["eg.Icons"] = Icons
 
 
 gImageList = wx.ImageList(16, 16)

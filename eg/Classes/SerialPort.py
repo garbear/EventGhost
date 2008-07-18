@@ -16,30 +16,10 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
-
-import sys
-
-ORIGINAL_MODULE = sys.modules[__name__]
+# $LastChangedDate: 2008-05-11 09:14:25 +0200 (So, 11 Mai 2008) $
+# $LastChangedRevision: 409 $
+# $LastChangedBy: bitmonster $
 
 
-class LazyPackage(object):
-    
-    def __init__(self):
-        self.__name__ = __name__
-        self.__path__ = ORIGINAL_MODULE.__path__
-        self.__file__ = ORIGINAL_MODULE.__file__
-        sys.modules[__name__] = self
-        
-        import __builtin__
-        __builtin__.__dict__[__name__] = self
-
-        
-    def __getattr__(self, name):
-        mod = __import__("eg.Classes." + name, None, None, [name], 0)
-        self.__dict__[name] = attr = getattr(mod, name)
-        return attr
-
-LazyPackage()
+# through this file we make eg.SerialPort lazy-loadable
+from eg.WinApi.serial import Serial as SerialPort

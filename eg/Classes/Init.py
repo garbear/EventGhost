@@ -31,34 +31,28 @@ import locale
 from functools import partial
 
 
-class EventGhost(object):
-    
-    def result_fget(self):
-        return eg._result
-    
-    
-    def result_fset(self, value):
-        eg._result = value
-        
-    result = property(result_fget, result_fset)
-    
-    
+def result_fget(self):
+    return eg._result
+
+
+def result_fset(self, value):
+    eg._result = value
+
+
+class Init(object):
+
     def __init__(self, args):
-#        global eg
-#        eg = self
-#        sys.modules["eg"] = self
-#        eg.__path__ = [os.path.abspath("eg")]
-        
-        # add 'eg' and 'wx' to the builtin name space of every module
+        # add ''wx' to the builtin name space of every module
         import __builtin__
-        #__builtin__.__dict__["eg"] = self
         eg = __builtin__.eg
         import wx
         __builtin__.__dict__["wx"] = wx
         eg.__dict__.update(self.__class__.__dict__)
-        self._result = None
+        eg._result = None
+        eg.__class__.result = property(result_fget, result_fset)
         import wx.lib.newevent
-        eg.ValueChangedEvent, eg.EVT_VALUE_CHANGED = wx.lib.newevent.NewCommandEvent()
+        eg.ValueChangedEvent, eg.EVT_VALUE_CHANGED = \
+            wx.lib.newevent.NewCommandEvent()
         
         eg.startupArguments = args
         eg.debugLevel = args.debugLevel
@@ -89,6 +83,9 @@ class EventGhost(object):
         import BmpImagePlugin
         import GifImagePlugin
         Image._initialized = 2  
+        
+        import eg.Classes.cFunctions as cFunctions
+        sys.modules["eg.cFunctions"] = cFunctions
         
         #import Utils
         sys.modules["eg.Utils"] = eg.Utils
@@ -124,8 +121,6 @@ class EventGhost(object):
         eg.app = eg.App()
         eg.config = eg.Config()
                 
-        import eg.Icons
-        
         eg.log = eg.Log()
         eg.Print = eg.log.Print
         eg.PrintError = eg.log.PrintError
@@ -142,15 +137,14 @@ class EventGhost(object):
                 sys.stderr.write("Error%d: %s\n" % (level, msg))
         wx.Log.SetActiveTarget(MyLog())
 
-        from LanguageTools import LoadStrings
-        eg.text = LoadStrings(eg.config.language)
+        eg.text = eg.Translation.Load(eg.config.language)
         eg.SetClass(eg.text, eg.TextStrings)
 
         eg.Exit = sys.exit
         
-        from eg.greenlet import greenlet
-        eg.Greenlet = greenlet
-        eg.mainGreenlet = greenlet.getcurrent()
+        #from eg.greenlet import greenlet
+        eg.Greenlet = eg.greenlet
+        eg.mainGreenlet = eg.Greenlet.getcurrent()
         
         # replace builtin raw_input with a small dialog
         def raw_input(prompt=None):
@@ -163,10 +157,6 @@ class EventGhost(object):
         def input(prompt=None):
             return eval(raw_input(prompt))
         __builtin__.input = input
-        
-        # TODO: make this lazy imports
-        from eg.WinApi.serial import Serial
-        eg.SerialPort = Serial
         
         from eg.WinApi.SendKeys import SendKeys
         eg.SendKeys = SendKeys
@@ -255,17 +245,6 @@ class EventGhost(object):
         eg.Print(eg.text.MainFrame.Logger.welcomeText)
 
             
-#    def __getattr__(self, name):
-#        mod = __import__("eg.Classes." + name, globals(), locals(), [name], 0)
-#        attr = getattr(mod, name)
-#        eg.__dict__[name] = attr
-#        return attr
-#    
-#    
-#    def __delattr__(self, name):
-#        eg.PrintError("Deletion of eg.%s is forbidden!" % name)
-#    
-#    
     def DeInit():
         eg.PrintDebugNotice("stopping threads")
         eg.actionThread.CallWait(eg.actionThread.StopSession)
