@@ -1,0 +1,101 @@
+import sys
+import threading
+
+import wx
+
+import builder
+
+
+class MainDialog(wx.Dialog):
+
+    def __init__(self, buildSetup):
+        self.buildSetup = buildSetup
+        wx.Dialog.__init__(
+            self, None, title="Build %s Installer" % buildSetup.name
+        )
+
+        # create controls
+        self.ctrls = {}
+        ctrlsSizer = wx.BoxSizer(wx.VERTICAL)
+        for task in buildSetup.tasks:
+            if not task.visible:
+                continue
+            section = task.GetId()
+            ctrl = wx.CheckBox(self, -1, task.description)
+            ctrl.SetValue(task.activated)
+            ctrlsSizer.Add(ctrl, 0, wx.ALL, 5)
+            self.ctrls[section] = ctrl
+            if not task.enabled:
+                ctrl.Enable(False)
+
+        self.okButton = wx.Button(self, wx.ID_OK)
+        self.okButton.Bind(wx.EVT_BUTTON, self.OnOk)
+        self.okButton.SetDefault()
+        self.cancelButton = wx.Button(self, wx.ID_CANCEL)
+        self.cancelButton.Bind(wx.EVT_BUTTON, self.OnCancel)
+
+        # add controls to sizers
+        btnSizer = wx.StdDialogButtonSizer()
+        btnSizer.AddButton(self.okButton)
+        btnSizer.AddButton(self.cancelButton)
+        btnSizer.Realize()
+
+        sizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer2.Add(ctrlsSizer)
+
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        mainSizer.Add(sizer2, 1, wx.ALL|wx.EXPAND, 0)
+        mainSizer.Add(btnSizer, 0, wx.ALL|wx.ALIGN_RIGHT, 10)
+        self.SetSizerAndFit(mainSizer)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+
+    def OnOk(self, dummyEvent):
+        """ Handles a click on the Ok button. """
+        self.okButton.Enable(False)
+        self.cancelButton.Enable(False)
+        #self.SetWindowStyleFlag(wx.CAPTION|wx.RESIZE_BORDER)
+        for task in self.buildSetup.tasks:
+            if not task.visible:
+                continue
+            section = task.GetId()
+            if section in self.ctrls:
+                ctrl = self.ctrls[section]
+                task.activated = ctrl.GetValue()
+                ctrl.Enable(False)
+        self.buildSetup.config.SaveSettings()
+        thread = threading.Thread(target=self.DoMain)
+        thread.start()
+
+
+    def DoMain(self):
+        builder.Tasks.Main(self.buildSetup)
+        wx.CallAfter(self.OnExit)
+        
+
+    def OnExit(self):
+        self.Destroy()
+        sys.exit(0)
+        
+    
+    def OnCancel(self, event):
+        """ Handles a click on the cancel button. """
+        event.Skip()
+        self.Destroy()
+        wx.GetApp().ExitMainLoop()
+
+
+    def OnClose(self, event):
+        """ Handles a click on the close box of the frame. """
+        event.Skip()
+        self.Destroy()
+        wx.GetApp().ExitMainLoop()
+
+
+def Main(buildSetup):
+    app = wx.App(0)
+    app.SetExitOnFrameDelete(True)
+    mainDialog = MainDialog(buildSetup)
+    mainDialog.Show()
+    app.MainLoop()
+
