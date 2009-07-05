@@ -1,5 +1,5 @@
 # This file is part of EventGhost.
-# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
+# Copyright (C) 2009 Lars-Peter Voss <bitmonster@eventghost.org>
 #
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,18 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
 
-import sys
-from os.path import exists, join
-
+from os.path import join, exists
 import eg
 from eg.Utils import SetDefault
-
 
 
 class PluginProxy(object):
@@ -40,103 +32,48 @@ class PluginProxy(object):
 
 
 
-class LoadErrorPlugin(eg.PluginBase):
-
-    def __init__(self):
-        raise self.Exceptions.PluginLoadError
-
-    def __start__(self, *args):
-        raise self.Exceptions.PluginLoadError
-
-
-
-class UnknownPlugin(eg.PluginBase):
-
-    def __init__(self):
-        raise self.Exceptions.PluginNotFound
-
-    def __start__(self, *args):
-        raise self.Exceptions.PluginNotFound
-
-
-
-class PluginInfo(object):
-    """
-    This is an abstract class to hold information about a plugin.
-
-    It is first subclassed dynamically for every plugin class that gets
-    defined, so the class will hold information about the plugin class.
-    Then everytime a new plugin of that class is instantiated, this
-    PluginInfo subclass gets instantiated also.
-    This way attribute access will go from the PluginInfo for the plugins
-    instance to the PluginInfo for the plugins class, down to the abstract
-    PluginInfo class.
-    """
-    # Most important is to know the class of the plugin we are looking at
+class PluginInstanceInfo(eg.PluginModuleInfo):
     pluginCls = None
-
-    # name and description will hold the fields defined through the class.
-    # Keep in mind, that every plugin instance might get a modified name
-    # because it is instantiated more then once.
-    name = "unknown"
-    description = ""
-
-    # some informational fields
-    author = "unknown author"
-    version = "unknow version"
-
-    # kind gives a hint in which group the plugin should be shown in
-    # the AddPluginDialog
-    kind = "other"
-
-    # icon might be an instance of a PIL icon, that the plugin developer
-    # has supplied
-    icon = eg.Icons.PLUGIN_ICON
-
-    evalName = None
-    instances = None
-    expanded = False
-    lastEvent = eg.EventGhostEvent()
-    actionClassList = None
-    initFailed = True
-    originalText = None
-    isStarted = False
-    label = None
+    module = None
     treeItem = None
-    canMultiLoad = False
-    createMacrosOnAdd = False
-
-    eventList = None
-    lastException = None
+    actions = {}
+    evalName = None
+    eventPrefix = None
     instance = None
-    url = None
+    actionGroup = None
     args = ()
-    kwargs = {}
-
-
+    label = None
+    initFailed = True
+    lastException = None
+    isStarted = False
+    lastEvent = eg.EventGhostEvent()
+    eventList = None
+    
     @classmethod
-    def LoadModule(cls):
-        pathname = join(cls.path, "__init__.py")
+    def FromModuleInfo(cls, moduleInfo):
+        self = cls.__new__(cls)
+        self.__dict__.update(moduleInfo.__dict__)
+        pathname = join(self.path, "__init__.py")
         if not exists(pathname):
             eg.PrintError("File %s does not exist" % pathname)
             return False
         try:
-            module = cls.baseInfo.Import()
+            module = self.Import()
         except:
             eg.PrintTraceback(
-                "Error while loading plugin-file %s." % cls.pluginName,
+                "Error while loading plugin-file %s." % self.path,
                 1
             )
             return False
         pluginCls = module.__pluginCls__
-        cls.module = module
-        cls.pluginCls = pluginCls
+        self.module = module
+        self.pluginCls = pluginCls
         defaultText = pluginCls.text
         if defaultText is None:
             class defaultText:
                 pass
-        defaultText.name = cls.englishName
-        defaultText.description = cls.englishDescription
+        defaultText.name = self.englishName
+        defaultText.description = self.englishDescription
         translationText = getattr(eg.text.Plugin, pluginCls.__name__, None)
         if translationText is not None:
             SetDefault(translationText, defaultText)
@@ -144,33 +81,32 @@ class PluginInfo(object):
         else:
             setattr(eg.text.Plugin, pluginCls.__name__, defaultText)
             text = defaultText
-        #text.__class__.name = pluginInfo.englishName
-        #text.__class__.description = pluginInfo.englishDescription
+
         pluginCls.text = text
         pluginCls.name = text.name
         pluginCls.description = text.description
-        eg.pluginClassInfo[cls.pluginName] = cls
-        return True
+        return self
 
 
-    @classmethod
-    def CreatePluginInstance(pluginInfoCls, evalName, treeItem):
-        info = pluginInfoCls()
-        info.treeItem = treeItem
-        info.actions = {}
-        pluginCls = pluginInfoCls.pluginCls
+
+    def CreateInstance(self, pluginClsInfo, args, evalName, treeItem):
+        self.args = args
+        self.treeItem = treeItem
+        self.actions = {}
+        pluginCls = self.pluginCls
         try:
-            pluginObj = pluginCls.__new__(pluginCls)
+            plugin = pluginCls.__new__(pluginCls)
         except:
             eg.PrintTraceback()
             return None
-        pluginObj.info = info
+        plugin.info = self
+        self.instance = plugin
 
         # create an unique exception for every plugin instance
         class _Exception(eg.PluginBase.Exception):
-            obj = pluginObj
-        pluginObj.Exception = _Exception
-        pluginObj.Exceptions = eg.ExceptionsProvider(pluginObj)
+            obj = plugin
+        plugin.Exception = _Exception
+        plugin.Exceptions = eg.ExceptionsProvider(plugin)
 
         if evalName is None:
             evalName = pluginCls.__name__
@@ -179,29 +115,28 @@ class PluginInfo(object):
                 i += 1
                 evalName = pluginCls.__name__ + str(i)
         assert not hasattr(eg.plugins, evalName)
-        info.evalName = evalName
-        setattr(eg.plugins, evalName, PluginProxy(pluginObj))
-        eg.pluginList.append(pluginObj)
+        self.evalName = evalName
+        setattr(eg.plugins, evalName, PluginProxy(plugin))
+        eg.pluginList.append(plugin)
 
         if evalName != pluginCls.__name__:
             numStr = evalName[len(pluginCls.__name__):]
-            pluginObj.name = pluginInfoCls.name + " #" + numStr
+            plugin.name = self.name + " #" + numStr
         else:
-            pluginObj.name = pluginInfoCls.name
-        pluginObj.description = pluginInfoCls.description
-        info.eventPrefix = evalName
-        if pluginInfoCls.instances is None:
-            pluginInfoCls.instances = [info]
-        else:
-            pluginInfoCls.instances.append(pluginObj.info)
-        info.instance = pluginObj
-        info.actionGroup = eg.ActionGroup(pluginObj, pluginObj.name, pluginObj.description)
-        eg.actionGroup.items.append(info.actionGroup)
-        pluginObj.AddAction = info.actionGroup.AddAction
-        pluginObj.AddGroup = info.actionGroup.AddGroup
+            plugin.name = self.name
+        plugin.description = self.description
+        self.eventPrefix = evalName
+        self.actionGroup = eg.ActionGroup(
+            plugin, 
+            plugin.name, 
+            plugin.description
+        )
+        eg.actionGroup.items.append(self.actionGroup)
+        plugin.AddAction = self.actionGroup.AddAction
+        plugin.AddGroup = self.actionGroup.AddGroup
         try:
-            pluginObj.__init__()
-            info.initFailed = False
+            plugin.__init__()
+            self.initFailed = False
         except eg.Exceptions.PluginNotFound, exc:
             pass
         except eg.Exception, exc:
@@ -209,40 +144,21 @@ class PluginInfo(object):
         except:
             eg.PrintTraceback()
 
-        pluginInfoCls.label = pluginObj # ???
-        return info
-
-
-    @classmethod
-    @eg.LogIt
-    def Open(cls, pluginName, evalName, args, treeItem=None):
-        pluginClsInfo = eg.pluginManager.GetPluginInfo(pluginName)
-        if pluginClsInfo is None:
-            class pluginInfoCls(PluginInfo):
-                name = pluginName
-                pluginCls = UnknownPlugin
-        if pluginClsInfo.pluginCls is None:
-            if not pluginClsInfo.LoadModule():
-                class pluginInfoCls(PluginInfo):
-                    name = pluginName
-                    pluginCls = LoadErrorPlugin
-        info = pluginClsInfo.CreatePluginInstance(evalName, treeItem)
-        plugin = info.instance
-        info.args = args
+        #pluginInfoCls.label = pluginObj # ???
         if hasattr(plugin, "Compile"):
             plugin.Compile(*args)
         try:
-            info.label = plugin.GetLabel(*args)
+            self.label = plugin.GetLabel(*args)
         except:
-            info.label = plugin.info.name
-        return info
+            self.label = self.name
+        return self
 
 
     def Start(self):
         if self.isStarted:
             return
         try:
-            self.instance.__start__(*self.args, **self.kwargs)
+            self.instance.__start__(*self.args)
             self.isStarted = True
             self.lastException = None
             self.treeItem.ClearErrorState()
@@ -317,7 +233,8 @@ class PluginInfo(object):
             eg.actionGroup.items.remove(self.actionGroup)
         except:
             pass
-        self.instances.remove(self)
         self.instance = None
         plugin.AddAction = None
 
+
+        
