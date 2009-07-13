@@ -231,14 +231,17 @@ class USB_UIRT(eg.IrDecoderPlugin):
         self.enabled = False
         dll = self.dll
         if dll:
-            self.dll = None
             if not dll.UUIRTClose(self.hDrvHandle):
                 raise self.Exception("Error calling UUIRTClose")
-            
+ 
             # fix for USB-UIRT driver bug, See OnComputerSuspend for details.
             self.hDrvHandle = dll.UUIRTOpenEx(self.deviceStr, 0, 0, 0)
+            # without the UUIRTSetUUIRTConfig call, the driver seems to need
+            # much more time to close.
+            self.SetConfig(*self.args)
             dll.UUIRTSetReceiveCallback(self.hDrvHandle, None, 0)
             dll.UUIRTClose(self.hDrvHandle)
+            self.dll = None
         
         
     def OnComputerSuspend(self, suspendType):
