@@ -36,7 +36,7 @@ ACTIONS = [
     ("StepBackward", "Step backward", "Goes to previous frame.", "e"),
     ("StepForward", "Step forward", "Goes to next frame.", "t"),
     ("ToggleFullscreen", "Toggle fullscreen", "Toggles between fullscreen and window mode.", "z"),
-    ("ToggleMute", "Toggle mute", "Mute volume.", "z"),
+    ("ToggleMute", "Toggle mute", "Mute volume.", "q"),
     ("VolumeUp", "Volume up", "Increase volume.", "+"),
     ("VolumeDown", "Volume down", "Decrease volume.", "-"),
     ("NextAudioStream", "Next audio stream", "Switches among available audio streams.", "h"),
@@ -50,6 +50,7 @@ ACTIONS = [
     ("NavigationLeft", "Navigation Left", "Navigates through disc menus.", "{Left}"),
     ("NavigationRight", "Navigation Right", "Navigates through disc menus.", "{Right}"),
     ("NavigationEnter", "Navigation Enter", "Navigates through disc menus. (Has actually the same function as the Play action.)", "{Return}"),
+    ("Close", "Close", "Close PowerDVD.", "{Ctrl+x}"),
 ]
 
 

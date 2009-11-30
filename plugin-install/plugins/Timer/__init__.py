@@ -11,12 +11,9 @@ eg.RegisterPlugin(
     url = "http://www.eventghost.org/forum/viewtopic.php?t=572",
 )
 
-from threading import Thread, Event
 import time
 
-
 class Text:
-   
     stopped = "Plugin stopped"
     timerFinished = "Timer finished"
     listhl = "Currently active Timers:"
@@ -27,7 +24,6 @@ class Text:
         "Loop Counter",
         "Loops",
         "Interval")
-
 
     class TimerAction:
         name = "Start new or control running timer"
@@ -61,9 +57,9 @@ class Text:
         eventName = "Event name:"
         addCounterToName = "add loop counter to event name" #(otherwise payload only)"
 
-        labelStartUnlimited = 'Start timer "%s" (unlimited loops, %.2f seconds intervall)'
+        labelStartUnlimited = 'Start timer "%s" (unlimited loops, %.2f seconds interval)'
         labelStartOneTime = 'Start timer "%s"'
-        labelStart = 'Start timer "%s" (%s loops, %.2f seconds intervall)'
+        labelStart = 'Start timer "%s" (%s loops, %.2f seconds interval)'
         labels = (
             'Restart timer "%s"',
             'Restart timer "%s" if it is still running' ,
@@ -71,10 +67,9 @@ class Text:
             'Abort timer "%s"'
         )
 
-
-
-class TimerThread(Thread):
+class TimerObject():
     def __init__(self,
+        plugin,
         name,
         loops,
         interval,
@@ -84,117 +79,105 @@ class TimerThread(Thread):
         startTimeType,
         startTime
     ):
-
-        # Thread.__init__(self, name = name)
-        # threading Thread doesn't like unicode strings as name. This seems
-        # to be a bug of the library. We don't need the name anyhow, so we
-        # init it anonymous.
-        Thread.__init__(self, name="TimerThread")
-        if not eventName:
-            eventName = name
+        #copy settings to instance variables
+        self.plugin = plugin
         self.name = name
         self.interval = interval
-        if self.interval == 0:
+        if self.interval <= 0:
             self.loops = 1 #prevent constant eventTriggering
         else:
             self.loops = loops
+
         self.eventName = eventName
-        self.finished = Event()
-        self.abort = False
-        self.restart = False
-        self.loopCounter = 0
-        self.timeStarted = 0
-        self.timeNextEvent = 0
         self.addCounterToName = addCounterToName
         self.showRemainingLoops = showRemainingLoops
         self.startTimeType = startTimeType
         self.startTime = startTime
+        self.ScheduleFirst()
 
-        #print "Starting", time.strftime("%c", time.localtime(self.startTime))
-   
-    def run(self):
-        self.timeStarted = time.time()
-        self.resetLoopCounter = False
+    def ScheduleFirst(self):
         self.loopCounter = 0
-        while (self.loops == 0 or self.loopCounter < self.loops):
-            #print "Loop", self.loopCounter
-            self.restart = True
-            while self.restart:#loops one time unless restart is called
-                self.restart = False
-                if self.loopCounter == 0:
-                    #calculate time2wait depending on startTypeChoice
-                    if self.startTimeType == 0:#immediately
-                        time2wait = 0
-                    elif self.startTimeType == 1:#after interval time
-                        time2wait = self.interval
-                    elif self.startTimeType == 2:#at given time (HH:MM:SS)
-                        hours, minutes, seconds = self.startTime.split(":")
-                        time2wait = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
-                        currentTime = time.time()
-                        tmp = time.localtime(currentTime)
-                        secondsToday = tmp[3] * 3600 + tmp[4] * 60 + tmp[5]
-                        if time2wait >= secondsToday:
-                            time2wait = time2wait - (secondsToday + (currentTime %1))
-                        else:
-                            time2wait = (24 * 60 * 60) - (secondsToday + (currentTime %1)) + time2wait
-                    elif self.startTimeType == 3:#after given duration (HH:MM:SS)
-                        hours, minutes, seconds = self.startTime.split(":")
-                        time2wait = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
-                    else:#next full x minute
-                        currentTime = time.time()
-                        times = (1, 5, 15, 30, 60)
-                        fullMinutes = times[self.startTimeType - 4]
-                        time2wait = 60 - (currentTime % 60)
-                        currentTime = round (currentTime + time2wait) #time with next full minute
-                        currentTime = (currentTime % 3600) / 60 #now minutes of hour
-                        currentTime = currentTime % fullMinutes
-                        if currentTime != 0:
-                            time2wait += ((fullMinutes - currentTime) *60)
-                   
-                else:#not first loop
-                    time2wait = self.interval
-               
-                self.timeNextEvent = time.time() + time2wait
-                #print time2wait, "Seconds until event", time.strftime("%c",  time.localtime(self.timeNextEvent))
-               
-                self.finished.wait(time2wait)
-                self.finished.clear()
-            if self.abort:
-                break
-           
-            if self.resetLoopCounter:
-                self.loopCounter = 0
-                self.resetLoopCounter = False
+        self.active = True
+        self.startedAt = time.time()
 
-            if self.showRemainingLoops and self.loops != 0:
-                loopDisplay = self.loops - self.loopCounter - 1
-            else:
-                loopDisplay = self.loopCounter
+        #immediately
+        if self.startTimeType == 0:
+            self.nextEventAt = self.startedAt 
+            self.TriggerScheduledEvent(self.nextEventAt)
+            return
 
-            eventNameTmp = self.eventName
-            if self.addCounterToName:
-                eventNameTmp += str(loopDisplay)
-           
-            eg.TriggerEvent(eventNameTmp, (loopDisplay, time.strftime("%c")), prefix = "Timer")
-            self.loopCounter += 1
-           
+        #after interval time
+        if self.startTimeType == 1:
+            self.nextEventAt = self.startedAt + self.interval
+        #at given time (HH:MM:SS)
+        elif self.startTimeType == 2:
+            hoursStr, minutesStr, secondsStr = self.startTime.split(":")
+            hours = int(hoursStr)
+            minutes = int(minutesStr)
+            seconds = int(secondsStr)
+            #check if we have to schedule today or tomorrow
+            now = time.localtime(self.startedAt)
+            self.nextEventAt = time.mktime((now[0], now[1], now[2], hours, minutes, seconds, now[6], now[7], -1))
+            if (self.nextEventAt <= self.startedAt):
+                #have to start tomorrow 
+                self.nextEventAt = time.mktime((now[0], now[1], now[2] + 1, hours, minutes, seconds, now[6], now[7], -1))
+        #after given duration (HH:MM:SS)
+        elif self.startTimeType == 3:
+            hoursStr, minutesStr, secondsStr = self.startTime.split(":")
+            self.nextEventAt = self.startedAt + int(hoursStr) * 3600 + int(minutesStr) * 60 + int(secondsStr)
+        #next full x minute
+        elif self.startTimeType > 3 and self.startTimeType < 9:
+            now = time.localtime(self.startedAt)
+            times = (1, 5, 15, 30, 60)
+            fullMinutes = times[self.startTimeType - 4]
+            minutes = ((now[4] / fullMinutes) + 1) * fullMinutes
+            self.nextEventAt = time.mktime((now[0], now[1], now[2], now[3], minutes, 0, now[6], now[7], now[8]))
+        else:
+            raise ValueError("unknown startTimeType")
         
-    def AbortTimer(self):
-        self.abort = True
-        self.finished.set()
+        eg.scheduler.AddTaskAbsolute(self.nextEventAt, self.TriggerScheduledEvent, self.nextEventAt)
+                    
+    def TriggerScheduledEvent(self, scheduledTime):
+        if not self.plugin.started or not self.active or self.nextEventAt != scheduledTime:
+            #timer has changed in some way
+            return
+
+        if self.showRemainingLoops and self.loops != 0:
+            loopDisplay = self.loops - self.loopCounter - 1
+        else:
+            loopDisplay = self.loopCounter
+
+        eventNameTmp = self.eventName
+        if self.addCounterToName:
+            eventNameTmp += str(loopDisplay)
        
+        self.plugin.TriggerEvent(eventNameTmp, (loopDisplay, time.strftime("%c")))
+
+        self.loopCounter += 1
+        self.ScheduleNext()
     
+    def ScheduleNext(self):
+        if not self.IsActive():
+            #no more event to schedule
+            return
+        self.nextEventAt += self.interval
+        eg.scheduler.AddTaskAbsolute(self.nextEventAt, self.TriggerScheduledEvent, self.nextEventAt)
+    
+    def Restart(self):
+        #just reschedule
+        self.ScheduleFirst()
+        
+    def Abort(self):
+        self.active = False
+
     def ResetCounter(self):
-        self.resetLoopCounter = True
-   
-
-    def RestartTimer(self):
-        self.timeStarted = time.time()
         self.loopCounter = 0
-        self.restart = True
-        self.finished.set()
+        
+    def IsActive(self):
+        return self.plugin.started and self.active and not self.HasFinished() 
 
-
+    def HasFinished(self):
+        return self.loops != 0 and self.loopCounter >= self.loops
 
 class Timer(eg.PluginClass):
     text = Text
@@ -203,25 +186,21 @@ class Timer(eg.PluginClass):
     def __init__(self):
         self.AddAction(TimerAction)
        
-        #timernames are kept for usebility reasons
+        #timer names are kept for usability reasons
         self.timerNames = []
         self.lastTimerName = ""
-        self.timerThreads = {}
-
+        self.timerObjects = {}
 
     def __start__(self):
         self.started = True
 
-
     def __stop__(self):
         self.started = False
-        #end all running threads
+        #end all running timers
         self.AbortAllTimers()
-
 
     def __close__(self):
         self.AbortAllTimers()
-
 
     #methods to Control timers
     def StartTimer(self,
@@ -235,12 +214,11 @@ class Timer(eg.PluginClass):
         startTime
     ):
 
-        if self.timerThreads.has_key(timerName):
-            t = self.timerThreads[timerName]
-            if t.isAlive():
-                t.AbortTimer()
-            del self.timerThreads[timerName]
-        t = TimerThread(timerName,
+        timer = self.timerObjects.get(timerName)
+        if timer:
+            timer.Abort()
+        timer = TimerObject(self,
+            timerName,
             loops,
             interval,
             eventName,
@@ -248,75 +226,46 @@ class Timer(eg.PluginClass):
             showRemainingLoops,
             startTimeType,
             startTime)
-        t.start()
-        self.timerThreads[timerName] = t
+        self.timerObjects[timerName] = timer
 
 
-    def ResetTimerCounter(self, timer):
-        if self.timerThreads.has_key(timer):
-            t = self.timerThreads[timer]
-            if t.isAlive():
-                t.ResetCounter()
+    def ResetTimerCounter(self, timerName):
+        timer = self.timerObjects.get(timerName)
+        if timer:
+            if timer.IsActive():
+                timer.ResetCounter()
             else:
-                eg.PrintError(self.text.timerFinished + timerName)
-                del threads[timerName]
+                eg.PrintError(Text.timerFinished + timerName)
                 return False
 
-
-    def AbortTimer(self, timer):
-        if self.timerThreads.has_key(timer):
-            t = self.timerThreads[timer]
-            t.AbortTimer()
-            del self.timerThreads[timer]
-
+    def AbortTimer(self, timerName):
+        timer = self.timerObjects.get(timerName)
+        if timer:
+            del self.timerObjects[timerName]
+            timer.Abort()
 
     def AbortAllTimers(self):
-        for i, item in enumerate(self.timerThreads):
-            t = self.timerThreads[item]
-            t.AbortTimer()
-            del t
-        self.timerThreads = {}
+        for timer in self.timerObjects.itervalues():
+            timer.Abort()
+        self.timerObjects = {}
 
-
-    def RestartTimer(self, timer, startNewIfNotAlive = False):
-        if self.timerThreads.has_key(timer):
-            t = self.timerThreads[timer]
-            if t.isAlive():
-                t.RestartTimer()
-            elif startNewIfNotAlive:
-                self.StartTimer(t.name,
-                    t.loops,
-                    t.interval,
-                    t.eventName,
-                    t.addCounterToName,
-                    t.showRemainingLoops,
-                    t.startTimeType,
-                    t.startTime)
-
+    def RestartTimer(self, timerName, startNewIfNotAlive = False):
+        timer = self.timerObjects.get(timerName)
+        if timer:
+            if timer.IsActive() or startNewIfNotAlive:
+                timer.Restart()
 
     def RestartAllTimers(self, startNewIfNotAlive = False):
-        for i, item in enumerate(self.timerThreads):
-            t = self.timerThreads[item]
-            if t.isAlive():
-                t.RestartTimer()
-            elif startNewIfNotAlive:
-                self.StartTimer(
-                    t.timerName,
-                    t.loops,
-                    t.interval,
-                    t.eventName,
-                    t.addCounterToName,
-                    t.showRemainingLoops,
-                    t.startTimeType,
-                    t.startTime
-                )
+        for timer in self.timerObjects.itervalues():
+            if timer.IsActive() or startNewIfNotAlive:
+                timer.Restart()
 
 
     def Configure(self, *args):
         panel = eg.ConfigPanel(self, resizable=True)
 
         panel.sizer.Add(
-            wx.StaticText(panel, -1, self.text.listhl),
+            wx.StaticText(panel, -1, Text.listhl),
             flag = wx.ALIGN_CENTER_VERTICAL
         )
 
@@ -328,11 +277,11 @@ class Timer(eg.PluginClass):
        
         timerListCtrl = wx.ListCtrl(panel, -1, style=wx.LC_REPORT | wx.VSCROLL | wx.HSCROLL)
        
-        for i, colLabel in enumerate(self.text.colLabels):
+        for i, colLabel in enumerate(Text.colLabels):
             timerListCtrl.InsertColumn(i, colLabel)
 
-        #setting col width to fit label
-        #insert date to get Size
+        #setting column width to fit label
+        #insert date to get size
         timerListCtrl.InsertStringItem(0, "Test EventName")
         timerListCtrl.SetStringItem(0, 1, time.strftime("%c"))
 
@@ -366,23 +315,22 @@ class Timer(eg.PluginClass):
         def PopulateList (event):
             timerListCtrl.DeleteAllItems()
             row = 0
-            for i, item in enumerate(self.timerThreads):
-                t = self.timerThreads[item]
-                if t.isAlive():
-                    timerListCtrl.InsertStringItem(row, t.name)
+            for timer in self.timerObjects.itervalues():
+                if timer.IsActive():
+                    timerListCtrl.InsertStringItem(row, timer.name)
                     #print "Timer", t.name, t.eventName, t.loopCounter
                     timerListCtrl.SetStringItem(row,
-                        1, time.strftime("%c",  time.localtime(t.timeStarted)))
+                        1, time.strftime("%c",  time.localtime(timer.startedAt)))
                     timerListCtrl.SetStringItem(row,
-                        2, time.strftime("%H:%M:%S",  time.localtime(t.timeNextEvent)))
+                        2, time.strftime("%X",  time.localtime(timer.nextEventAt)))
                     timerListCtrl.SetStringItem(row,
-                        3, t.eventName)
+                        3, timer.eventName)
                     timerListCtrl.SetStringItem(row,
-                        4, str(t.loopCounter))
+                        4, str(timer.loopCounter))
                     timerListCtrl.SetStringItem(row,
-                        5, str(t.loops))
+                        5, str(timer.loops))
                     timerListCtrl.SetStringItem(row,
-                    6, str(t.interval) + " sec")
+                    6, str(timer.interval) + " sec")
                     row += 1
             ListSelection(wx.CommandEvent())
 
@@ -440,21 +388,18 @@ class Timer(eg.PluginClass):
         while panel.Affirmed():
             panel.SetResult(*args)
 
-    #function to fill the timer name Combobox
+    #function to fill the timer name ComboBox
     def GetTimerNames(self):
         self.timerNames.sort(lambda a,b: cmp(a.lower(), b.lower()) )
         return self.timerNames
 
-    #function to collect timer names for Combobox
+    #function to collect timer names for ComboBox
     def AddTimerName(self, timerName):
         #self.lastTimerName = timerName
         if not timerName in self.timerNames:
             self.timerNames.append(timerName)
 
-
-
 class TimerAction(eg.ActionClass):
-
     def __call__(self,
         timerName,
         action,
@@ -466,9 +411,8 @@ class TimerAction(eg.ActionClass):
         startTimeType,
         startTime
     ):
-
         if not self.plugin.started:
-            self.PrintError(self.plugin.text.stopped)
+            self.PrintError(Text.stopped)
             return False
 
         if action == 0:#start
@@ -488,7 +432,8 @@ class TimerAction(eg.ActionClass):
             self.plugin.ResetTimerCounter(timerName)
         elif action == 4:#abort
             self.plugin.AbortTimer(timerName)
-
+        else:
+            raise ValueError("unknown action index")
 
     def GetLabel(self,
         timerName,
@@ -504,12 +449,11 @@ class TimerAction(eg.ActionClass):
         self.plugin.AddTimerName(timerName)
         if action == 0:
             if loops == 0:
-                return self.text.labelStartUnlimited % (timerName, interval)
+                return Text.labelStartUnlimited % (timerName, interval)
             if loops == 1:
-                return self.text.labelStartOneTime % timerName
-            return self.text.labelStart % (timerName, loops, interval)
-        return self.text.labels[action-1] % timerName
-
+                return Text.labelStartOneTime % timerName
+            return Text.labelStart % (timerName, loops, interval)
+        return Text.labels[action-1] % timerName
 
     def Configure(self,
         timerName = None,
@@ -522,7 +466,6 @@ class TimerAction(eg.ActionClass):
         startTimeType = 1,
         startTime = "00:00:00"
     ):
-        text = self.text
         plugin = self.plugin
 
         panel = eg.ConfigPanel(self)
@@ -530,9 +473,8 @@ class TimerAction(eg.ActionClass):
         #name
         nameSizer = wx.BoxSizer(wx.HORIZONTAL)
 
-
         nameSizer.Add(
-            wx.StaticText(panel, -1, self.text.timerName),
+            wx.StaticText(panel, -1, Text.TimerAction.timerName),
             flag = wx.ALIGN_CENTER_VERTICAL
         )
         if not timerName:
@@ -551,10 +493,10 @@ class TimerAction(eg.ActionClass):
         #sizer.SetEmptyCellSize((0,0))
 
        
-        choices = len(text.actions)
+        choices = len(Text.TimerAction.actions)
         rb = range(0, choices + 1)
        
-        rb[0] = wx.RadioButton(panel, -1, text.start, style = wx.RB_GROUP)
+        rb[0] = wx.RadioButton(panel, -1, Text.TimerAction.start, style = wx.RB_GROUP)
         rb[0].SetValue(action == 0)
 
         panel.sizer.Add(wx.Size(5,5))
@@ -568,25 +510,25 @@ class TimerAction(eg.ActionClass):
 
         #loop
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.loop1),
+            wx.StaticText(panel, -1, Text.TimerAction.loop1),
             (rowCount, 0), flag = wx.ALIGN_CENTER_VERTICAL)
         loopCtrl = eg.SpinIntCtrl(panel, -1, loops, 0, size=(200,-1))
         startSettingsSizer.Add(loopCtrl, (rowCount, 1), flag = wx.EXPAND)
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.loop2),
+            wx.StaticText(panel, -1, Text.TimerAction.loop2),
             (rowCount, 2), (1, 2),
             flag = wx.ALIGN_CENTER_VERTICAL)
 
         #showRemaingLoopsText
         rowCount += 1
-        showRemaingLoopsCtrl = wx.CheckBox(panel, -1, text.showRemaingLoopsText)
+        showRemaingLoopsCtrl = wx.CheckBox(panel, -1, Text.TimerAction.showRemaingLoopsText)
         showRemaingLoopsCtrl.SetValue(showRemainingLoops)
         startSettingsSizer.Add(showRemaingLoopsCtrl, (rowCount, 1), (1, 3))
        
         #intervall
         rowCount += 1
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.interval1),
+            wx.StaticText(panel, -1, Text.TimerAction.interval1),
             (rowCount, 0), flag = wx.ALIGN_CENTER_VERTICAL)
         intervalCtrl = eg.SpinNumCtrl(
             panel, -1, interval, size=(200,-1), integerWidth=7
@@ -594,16 +536,16 @@ class TimerAction(eg.ActionClass):
         startSettingsSizer.Add(intervalCtrl, (rowCount, 1), flag = wx.EXPAND)
        
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.interval2),
+            wx.StaticText(panel, -1, Text.TimerAction.interval2),
             (rowCount, 2), (1, 2),
             flag = wx.ALIGN_CENTER_VERTICAL)
 
         #startTime
         rowCount += 1
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.startTime),
+            wx.StaticText(panel, -1, Text.TimerAction.startTime),
             (rowCount, 0), flag = wx.ALIGN_CENTER_VERTICAL)
-        startTimeTypeCtrl = wx.Choice(panel, -1, choices = text.startTimeTypes)
+        startTimeTypeCtrl = wx.Choice(panel, -1, choices = Text.TimerAction.startTimeTypes)
         startTimeTypeCtrl.SetSelection(startTimeType)
         startSettingsSizer.Add(startTimeTypeCtrl, (rowCount, 1), (1, 2), flag = wx.EXPAND)
        
@@ -617,14 +559,14 @@ class TimerAction(eg.ActionClass):
         #eventName
         rowCount += 1
         startSettingsSizer.Add(
-            wx.StaticText(panel, -1, self.text.eventName),
+            wx.StaticText(panel, -1, Text.TimerAction.eventName),
             (rowCount, 0), flag = wx.ALIGN_CENTER_VERTICAL)
         eventNameCtrl = wx.TextCtrl(panel, -1, eventName, size=(200,-1))
         startSettingsSizer.Add(eventNameCtrl, (rowCount, 1), (1, 3), flag = wx.EXPAND)
        
         #addCounterToName
         rowCount += 1
-        addCounterToNameCtrl = wx.CheckBox(panel, -1, text.addCounterToName)
+        addCounterToNameCtrl = wx.CheckBox(panel, -1, Text.TimerAction.addCounterToName)
         addCounterToNameCtrl.SetValue(addCounterToName)
         startSettingsSizer.Add(addCounterToNameCtrl, (rowCount, 1), (1, 3))
 
@@ -639,7 +581,7 @@ class TimerAction(eg.ActionClass):
        
         for i in range(1, len(rb)):
             rowCount += 1
-            rb[i] = wx.RadioButton(panel, -1, text.actions[i - 1])
+            rb[i] = wx.RadioButton(panel, -1, Text.TimerAction.actions[i - 1])
             rb[i].SetValue(action == i)
             panel.sizer.Add(wx.Size(5,5))
             panel.sizer.Add(rb[i], flag = wx.ALIGN_CENTER_VERTICAL)

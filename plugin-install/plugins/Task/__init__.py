@@ -147,6 +147,7 @@ class Task(eg.PluginBase):
             self.names[name] = processInfo
             self.TriggerEvent("Created." + name)
 
+        
         processInfo.hwnds.add(hwnd)
         self.hwnds[hwnd] = processInfo
         self.TriggerEvent("NewWindow." + name)
