@@ -406,7 +406,6 @@ class SerialThread(Thread):
     @eg.LogItWithReturn
     def CallbackThreadProc(self):
         while self.keepAlive:
-            #print "CallbackThreadProc"
             self.readCondition.acquire()
             while len(self.buffer):
                 if self.readEventLock.acquire(0):
@@ -495,7 +494,7 @@ class SerialThread(Thread):
         # append the data to the buffer and notify waiting threads
         self.readCondition.acquire()
         self.buffer += data
-        self.readCondition.notify()
+        self.readCondition.notifyAll()
         self.readCondition.release()
 
 
