@@ -632,6 +632,23 @@ class Plugin:
             name = u"Rechte Maustaste Doppelklick"
         class ToggleLeftButton:
             name = u"Linke Maustaste umschalten"
+    class FS20PCS:
+        description = u"<rst>\nSenden von Befehlen an FS20 Empfänger.\n\n|\n\n|fS20Image|_\n\n`Zum Shop <http://www.elv.de/output/controller.aspx?cid=74&detail=10&detail2=27743>`__\n\n.. |fS20Image| image:: picture.jpg\n.. _fS20Image: http://www.elv.de/\n"
+        address = u"Adresse:"
+        level = u"Stufe:"
+        repeat = u"Wiederholungen:"
+        repeatSuffix = u"{0} ({1} Wiederholungen)"
+        timedActionDescription = u"Bietet zeitgesteuerte Kontrolle von FS20 Geräten"
+        timedActionName = u"Zeitgesteuerte Aktionen"
+        timerValue = u"Timerzeit:"
+        class Dim:
+            name = u"Dimmen"
+            description = u"Dimmt sofort auf eine Helligkeitsstufe"
+            labelFormat = u"Dimme {0} auf {1:.02f}%"
+        class DimDown:
+            name = u"Herunterdimmen"
+            description = u"Eine Helligkeitsstufe dunkler dimmen"
+            labelFormat = u"Dimme {0} eine Helligkeitsstufe dunkler"
     class Joystick:
         name = u"Joystick"
         description = u"Dieses Plugin erlaubt es Joysticks und Gamepads als Ereignisquelle zu verwenden."
