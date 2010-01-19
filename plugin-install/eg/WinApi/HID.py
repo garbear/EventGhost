@@ -8,6 +8,7 @@ import win32con
 import win32event
 import win32file
 import re
+
 from ctypes import Structure, Union, c_byte, c_char, c_int, c_long, c_ulong, c_ushort, c_wchar
 from ctypes import pointer, byref, sizeof, POINTER
 from ctypes.wintypes import ULONG, BOOLEAN
@@ -170,12 +171,14 @@ DIGCF_DEVICEINTERFACE = 0x00000010
 
 class HIDThread(threading.Thread):
     def __init__(self, deviceName, devicePath):
+        self.handle = None
         self.text = Text
         self.deviceName = deviceName
         self.devicePath = devicePath
         self.abort = False
         self._overlappedRead = win32file.OVERLAPPED()
         self._overlappedRead.hEvent = win32event.CreateEvent(None, 1, 0, None)
+        self._overlappedWrite = None
         self.RawCallback = None
         self.ButtonCallback = None
         self.ValueCallback = None
@@ -184,6 +187,8 @@ class HIDThread(threading.Thread):
 
     def AbortThread(self):
         self.abort = True
+        if self._overlappedWrite:
+            win32event.SetEvent(self._overlappedWrite.hEvent)
         win32event.SetEvent(self._overlappedRead.hEvent)
 
     def SetRawCallback(self, callback):
@@ -197,7 +202,37 @@ class HIDThread(threading.Thread):
 
     def SetStopCallback(self, callback):
         self.StopCallback = callback
+        
+    def WaitForInit(self):
+        win32event.WaitForSingleObject(self._overlappedRead.hEvent, win32event.INFINITE)
+        
+    def SetFeature(self, buffer):
+        if self.handle:
+            bufferLength = ULONG(len(buffer))
+            result = ctypes.windll.hid.HidD_SetFeature(int(self.handle), ctypes.create_string_buffer(buffer), bufferLength)
+            if not result:
+                raise Exception("could not set feature")
 
+    def Write(self, data, timeout):
+        if self.handle:
+            if not self._overlappedWrite:
+                self._overlappedWrite = win32file.OVERLAPPED()
+            err, n = win32file.WriteFile(self.handle, data, self._overlappedWrite)
+            if err: #will be ERROR_IO_PENDING:
+                # Wait for the write to complete.
+                n = win32file.GetOverlappedResult(self.handle, self._overlappedWrite, 1)
+                if n != len(data):
+                    raise Exception("could not write full data")
+            elif n != len(data):
+                raise Exception("could not write full data")
+            if timeout:#waits for response from device
+                win32event.ResetEvent(self._overlappedRead.hEvent)
+                res = win32event.WaitForSingleObject(self._overlappedRead.hEvent, timeout)
+                if res == win32event.WAIT_TIMEOUT:
+                    raise Exception("no response from device within timeout")
+        else:
+            raise Exception("invalid handle")
+            return
 
     def run(self):
         #open file/device
@@ -213,9 +248,9 @@ class HIDThread(threading.Thread):
             )
         except:
             eg.PrintError(self.text.errorOpen + self.deviceName)
+            win32event.SetEvent(self._overlappedRead.hEvent)
             return
 
-        #getting data to get the right buffer size
         hidDLL =  ctypes.windll.hid
         setupapiDLL = ctypes.windll.setupapi
 
@@ -295,9 +330,12 @@ class HIDThread(threading.Thread):
         #prepare data array with maximum possible length
         DataArrayType = HIDP_DATA * maxDataL
         data = DataArrayType()
+        
+        win32event.SetEvent(self._overlappedRead.hEvent)
 
         #initializing finished
         try:
+            self.handle = handle
             while not self.abort:
                 #try to read and wait for an event to happen
                 try:
@@ -373,6 +411,8 @@ class HIDThread(threading.Thread):
                     self.StopCallback()
                 except Exception:
                     eg.PrintTraceback()
+            
+            self.handle = None
 
 class DeviceDescription():
     def __init__(self, devicePath, vendorId, vendorString, productId, productString, versionNumber):
