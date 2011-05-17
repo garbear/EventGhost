@@ -1,16 +1,16 @@
 # This file is part of EventGhost.
 # Copyright (C) 2008 Lars-Peter Voss <bitmonster@eventghost.org>
-# 
+#
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # EventGhost is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -23,7 +23,7 @@ Plugin for the TechniSat USB IR Receiver
 .. image:: technisat.jpg
    :align: center
 
-**Notice:** You need a special driver to use the remote with this plugin. 
+**Notice:** You need a special driver to use the remote with this plugin.
 Please `download it here`__ and install it while the device is connected.
 
 __ http://www.eventghost.net/downloads/USB-Remote-Driver.exe
@@ -74,17 +74,17 @@ CODES = {
 
 
 class TechniSatUsb(eg.PluginBase):
-                
+
     def __start__(self):
         self.usb = eg.WinUsbRemote(
-            "{108E11FA-7EA0-4F13-AA64-1926E14A9C31}", 
-            self.Callback, 
+            "{108E11FA-7EA0-4F13-AA64-1926E14A9C31}",
+            self.Callback,
             6
         )
         if not self.usb.IsOk():
             raise self.Exceptions.DeviceNotFound
 
-         
+
     def __stop__(self):
         self.usb.Close()
 

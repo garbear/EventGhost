@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -99,7 +96,7 @@ class OptionsDialog(eg.TaskletDialog):
             #if useFixedFontCtrl.GetValue():
             if evt.IsChecked():
                 font = wx.Font(font.GetPointSize(), wx.DEFAULT, wx.NORMAL, wx.NORMAL, False, "Courier New")
-            wx.CallAfter(eg.document.frame.logCtrl.SetFont, font)            
+            wx.CallAfter(eg.document.frame.logCtrl.SetFont, font)
         useFixedFontCtrl.Bind(wx.EVT_CHECKBOX, OnFixedFontBox)
 
         #checkUpdateCtrl = page1.CheckBox(config.checkUpdate, text.CheckUpdate)

@@ -1,27 +1,21 @@
+# -*- coding: utf-8 -*-
+#
 # This file is part of EventGhost.
-# Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
-# 
-# EventGhost is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# EventGhost is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# Copyright (C) 2005-2009 Lars-Peter Voss <bitmonster@eventghost.org>
+#
+# EventGhost is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License version 2 as published by the
+# Free Software Foundation;
+#
+# EventGhost is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
 # You should have received a copy of the GNU General Public License
-# along with EventGhost; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """<rst>
-Hardware plugin for the `TechnoTrend USB Infrared Receiver 
+Hardware plugin for the `TechnoTrend USB Infrared Receiver
 <http://www.technotrend.com/2789/USB_Infrared_Receiver.html>`_.
 
 |
@@ -53,11 +47,11 @@ from eg.WinApi.Dynamic import (
 
 USBIR_MODE_DIV = 2
 
-# typedef void (*PIRCBFCN) (PVOID Context, 
-#                           PVOID Buf, 
+# typedef void (*PIRCBFCN) (PVOID Context,
+#                           PVOID Buf,
 #                           ULONG len, // buffer length in bytes
-#                           USBIR_MODES IRMode, 
-#                           HANDLE hOpen, 
+#                           USBIR_MODES IRMode,
+#                           HANDLE hOpen,
 #                           BYTE DevIdx);
 IRCALLBACKFUNC = CFUNCTYPE(
     c_void_p, # return type
@@ -71,15 +65,15 @@ IRCALLBACKFUNC = CFUNCTYPE(
 
 
 class TTIR(eg.IrDecoderPlugin):
-    
+
     def __init__(self):
         eg.IrDecoderPlugin.__init__(self, 1)
 
 
     def __close__(self):
         self.irDecoder.Close()
-    
-    
+
+
     def __start__(self):
         self.dll = None
         self.hOpen = None
@@ -102,25 +96,25 @@ class TTIR(eg.IrDecoderPlugin):
             partial(self.dll.irSetPowerLED, self.hOpen, 0)
         )
 
-    
+
     def OnComputerSuspend(self, dummySuspendType):
         self.dll.irClose(self.hOpen)
-    
-    
+
+
     def OnComputerResume(self, dummySuspendType):
         self.hOpen = self.dll.irOpen(
             0, USBIR_MODE_DIV, self.cCallback, 0
         )
         if self.hOpen == -1:
             raise self.Exceptions.DeviceNotFound
-    
-    
+
+
     def __stop__(self):
         if self.dll is not None:
             self.dll.irClose(self.hOpen)
         self.timer.Stop()
         self.ledTimer.Stop()
-    
+
     def IrCallback(self, context, buf, length, irMode, hOpen, devIdx):
         if irMode == USBIR_MODE_DIV:
             self.dll.irSetPowerLED(self.hOpen, 1)
@@ -139,8 +133,8 @@ class TTIR(eg.IrDecoderPlugin):
                     append = self.data.append
             self.startByte = 0
             self.dataLock.release()
-            
-    
+
+
     def OnTimeout(self):
         if self.dataLock.acquire(0):
             data = self.data
@@ -149,4 +143,4 @@ class TTIR(eg.IrDecoderPlugin):
             self.dataLock.release()
             data.append(10000)
             self.irDecoder.Decode(data, len(data))
-        
+

@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -59,8 +56,8 @@ def InitPathesAndBuiltins():
     pluginPackage.__path__ = [eg.PLUGIN_DIR]
     sys.modules["eg.PluginModule"] = pluginPackage
     eg.PluginModule = pluginPackage
-    
-    
+
+
 # replace builtin raw_input() with a small dialog
 def RawInput(prompt=None):
     return eg.SimpleInputDialog.RawInput(prompt)

@@ -22,9 +22,6 @@
 # EventGhost
 # Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
 #
-# $LastChangedDate: 2009-02-07 20:13:27 +0100 (Sa, 07 Feb 2009) $
-# $LastChangedRevision: 831 $
-# $LastChangedBy: bitmonster $
 
 import eg
 

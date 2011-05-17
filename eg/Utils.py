@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 __all__ = ["Bunch", "NotificationHandler", "LogIt", "LogItWithReturn",
     "TimeIt", "AssertNotMainThread", "AssertNotActionThread", "ParseString",
@@ -392,7 +389,7 @@ def GetFirstParagraph(text):
                 break
             result += " " + line
         return ' '.join(result.split())
-        
+
 def MergeUrl(description, url):
     if url:
         txt = '<p><div align=right><i><font color="#999999" size=-1>%s <a href="%s">%s</a>.</font></i></div></p>' % (

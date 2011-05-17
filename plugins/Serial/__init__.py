@@ -1,24 +1,21 @@
 # This file is part of EventGhost.
 # Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
-# 
+#
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # EventGhost is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 # TODO: Use of eg.SerialThread instead of eg.SerialPort
 
@@ -33,7 +30,7 @@ eg.RegisterPlugin(
 )
 
 
-    
+
 class Text:
     port = "Port:"
     baudrate = "Baudrate:"
@@ -66,7 +63,7 @@ class Text:
             "\\r will send a Carriage Return (CR)<br>"
             "\\t will send a Horizontal Tab (TAB)<br>"
             "\\x0B will send the ASCII character with the hexcode 0B<br>"
-            "\\\\ will send a single Backslash."            
+            "\\\\ will send a single Backslash."
         )
     class Read:
         name = "Read Data"
@@ -80,12 +77,12 @@ class Text:
             "<p>"
             "Using this action and enabling event generation in the plugin "
             "cannot be used at the same time, as one of it will always eat "
-            "the data away from the other."        
+            "the data away from the other."
         )
         read_all = "Read as many bytes as are currently available"
         read_some = "Read exactly this number of bytes:"
         read_time = "and wait this maximum number of milliseconds for them:"
-    
+
 
 import wx
 import threading
@@ -95,15 +92,15 @@ import codecs
 import binascii
 
 BAUDRATES = [
-    '110', '300', '600', '1200', '2400', '4800', '9600', '14400', '19200', 
+    '110', '300', '600', '1200', '2400', '4800', '9600', '14400', '19200',
     '38400', '57600', '115200', '128000', '256000'
 ]
 
 
 def MyHexDecoder(input):
     return (binascii.b2a_hex(input).upper(), len(input))
-        
-        
+
+
 DECODING_FUNCS = [
     codecs.getdecoder(eg.systemEncoding),
     MyHexDecoder,
@@ -116,7 +113,7 @@ DECODING_FUNCS = [
 
 class Serial(eg.RawReceiverPlugin):
     text = Text
-    
+
     def __init__(self):
         eg.RawReceiverPlugin.__init__(self)
         self.AddAction(Write)
@@ -126,8 +123,8 @@ class Serial(eg.RawReceiverPlugin):
 
 
     def __start__(
-        self, 
-        port, 
+        self,
+        port,
         baudrate,
         bytesize=8,
         parity=0,
@@ -144,11 +141,11 @@ class Serial(eg.RawReceiverPlugin):
             xonxoff = 1
         elif handshake == 2:
             rtscts = 1
-            
+
         try:
             self.serial = eg.SerialPort(
-                port, 
-                baudrate=baudrate, 
+                port,
+                baudrate=baudrate,
                 bytesize=(5, 6, 7, 8)[bytesize],
                 stopbits=(1, 2)[stopbits],
                 parity=('N', 'O', 'E')[parity],
@@ -188,14 +185,14 @@ class Serial(eg.RawReceiverPlugin):
             if eventstring:
                 self.TriggerEvent(self.decoder(eventstring)[0])
             self.buffer = self.buffer[pos+len(self.terminator):]
-            
-            
+
+
     def ReceiveThread(self):
         from win32event import (
-            ResetEvent, 
-            MsgWaitForMultipleObjects, 
-            QS_ALLINPUT, 
-            WAIT_OBJECT_0, 
+            ResetEvent,
+            MsgWaitForMultipleObjects,
+            QS_ALLINPUT,
+            WAIT_OBJECT_0,
             WAIT_TIMEOUT,
         )
         from win32file import ReadFile, AllocateReadBuffer, GetOverlappedResult
@@ -225,8 +222,8 @@ class Serial(eg.RawReceiverPlugin):
 
             rc = MsgWaitForMultipleObjects(
                 (hEvent, stopEvent),
-                0, 
-                1000, 
+                0,
+                1000,
                 QS_ALLINPUT
             )
             if rc == WAIT_OBJECT_0:
@@ -242,11 +239,11 @@ class Serial(eg.RawReceiverPlugin):
                 pass
             else:
                 self.PrintError("unknown message")
-                
-            
+
+
     def Configure(
-        self, 
-        port=0, 
+        self,
+        port=0,
         baudrate=9600,
         bytesize=3,
         parity=0,
@@ -260,7 +257,7 @@ class Serial(eg.RawReceiverPlugin):
         text = self.text
         panel = eg.ConfigPanel()
         portCtrl = panel.SerialPortChoice(port)
-        
+
         baudrateCtrl = panel.ComboBox(
             str(baudrate),
             BAUDRATES,
@@ -278,7 +275,7 @@ class Serial(eg.RawReceiverPlugin):
         prefixCtrl.Enable(generateEvents)
         encodingCtrl = panel.Choice(encodingNum, text.codecChoices)
         encodingCtrl.Enable(generateEvents)
-        
+
         def OnCheckBox(event):
             flag = generateEventsCtrl.GetValue()
             terminatorCtrl.Enable(flag)
@@ -286,7 +283,7 @@ class Serial(eg.RawReceiverPlugin):
             encodingCtrl.Enable(flag)
             event.Skip()
         generateEventsCtrl.Bind(wx.EVT_CHECKBOX, OnCheckBox)
-        
+
         panel.SetColumnFlags(1, wx.EXPAND)
         portSettingsBox = panel.BoxedGroup(
             "Port settings",
@@ -311,7 +308,7 @@ class Serial(eg.RawReceiverPlugin):
         panel.sizer.Add(eg.HBoxSizer(portSettingsBox, (10, 10), eventSettingsBox))
         while panel.Affirmed():
             panel.SetResult(
-                portCtrl.GetValue(), 
+                portCtrl.GetValue(),
                 int(baudrateCtrl.GetValue()),
                 bytesizeCtrl.GetValue(),
                 parityCtrl.GetValue(),
@@ -322,18 +319,18 @@ class Serial(eg.RawReceiverPlugin):
                 prefixCtrl.GetValue(),
                 encodingCtrl.GetValue(),
             )
-        
-        
-        
+
+
+
 class Write(eg.ActionWithStringParameter):
-    
+
     def __call__(self, data):
         data = eg.ParseString(data, self.replaceFunc)
         data = data.decode('string_escape')
         self.plugin.serial.write(str(data))
         return self.plugin.serial
-        
-        
+
+
     def replaceFunc(self, data):
         data = data.strip()
         if data == "CR":
@@ -342,11 +339,11 @@ class Write(eg.ActionWithStringParameter):
             return chr(10)
         else:
             return None
-    
-    
-    
+
+
+
 class Read(eg.ActionBase):
-    
+
     def __call__(self, count=None, timeout=0.0):
         serial = self.plugin.serial
         serial.timeout = timeout
@@ -354,12 +351,12 @@ class Read(eg.ActionBase):
             count = 1024
         data = serial.read(count)
         return data
-    
-    
+
+
     def GetLabel(self, *args):
         return eg.ActionBase.GetLabel(self)
-    
-    
+
+
     def Configure(self, count=None, timeout=1.0):
         text = self.text
         panel = eg.ConfigPanel()
@@ -376,7 +373,7 @@ class Read(eg.ActionBase):
         countCtrl.Enable(flag)
         timeCtrl = panel.SpinIntCtrl(int(timeout * 1000), 0, 10000)
         timeCtrl.Enable(flag)
-        
+
         def OnRadioButton(event):
             flag = rb2.GetValue()
             countCtrl.Enable(flag)
@@ -384,7 +381,7 @@ class Read(eg.ActionBase):
             event.Skip()
         rb1.Bind(wx.EVT_RADIOBUTTON, OnRadioButton)
         rb2.Bind(wx.EVT_RADIOBUTTON, OnRadioButton)
-        
+
         Add = panel.sizer.Add
         Add(rb1)
         Add((5,5))
@@ -401,8 +398,7 @@ class Read(eg.ActionBase):
                 panel.SetResult(None, 0.0)
             else:
                 panel.SetResult(
-                    countCtrl.GetValue(), 
+                    countCtrl.GetValue(),
                     timeCtrl.GetValue() / 1000.0
                 )
-    
-        
+

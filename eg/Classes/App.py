@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -40,8 +37,8 @@ if IS_VISTA:
 else:
     ShutdownBlockReasonCreate = lambda hwnd, msg: None
     ShutdownBlockReasonDestroy = lambda hwnd: None
-    
-    
+
+
 class App(wx.App):
 
     def __init__(self):
@@ -67,7 +64,7 @@ class App(wx.App):
         else:
             self.Bind(wx.EVT_QUERY_END_SESSION, self.OnQueryEndSessionXp)
         self.Bind(wx.EVT_END_SESSION, self.OnEndSession)
-            
+
         return True
 
 
@@ -79,8 +76,8 @@ class App(wx.App):
         if eg.document.CheckFileNeedsSave() == wx.ID_CANCEL:
             event.Veto()
         wx.CallAfter(self.Reset)
-            
-    
+
+
     @eg.LogItWithReturn
     def OnQueryEndSessionVista(self, event):
         if self.shouldVeto:
@@ -110,16 +107,16 @@ class App(wx.App):
                 self.shouldVeto = True
                 wx.CallAfter(self.Reset)
                 return
-                
-                
+
+
     @eg.LogItWithReturn
     def Reset(self):
         self.shouldVeto = False
         self.firstQuery = True
         ShutdownBlockReasonDestroy(self.hwnd)
-        
-        
-    
+
+
+
     @eg.LogItWithReturn
     def OnEndSession(self, dummyEvent):
         if self.endSession:
@@ -132,7 +129,7 @@ class App(wx.App):
         eg.taskBarIcon.Close()
         self.OnExit()
 
-    
+
     @eg.LogIt
     def Exit(self, dummyEvent=None):
         if eg.document.CheckFileNeedsSave() == wx.ID_CANCEL:

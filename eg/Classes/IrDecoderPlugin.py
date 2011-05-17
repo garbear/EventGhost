@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate: 2009-01-25 12:34:22 +0100 (So, 25 Jan 2009) $
-# $LastChangedRevision: 800 $
-# $LastChangedBy: bitmonster $
+
 
 import eg
 

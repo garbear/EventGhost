@@ -62,7 +62,7 @@ from Dynamic import (
 def FailedFunc(funcName):
     errCode = GetLastError()
     return WindowsError(
-        errCode, 
+        errCode,
         "%s: %s" % (funcName, FormatError(errCode))
     )
 

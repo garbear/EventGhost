@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate: 2011-02-12 09:14:00 +0100 (Su, 12 Feb 2011) $
-# $LastChangedRevision: r1486 $
-# $LastChangedBy: Pako $
+
 
 import wx
 import wx.lib.masked

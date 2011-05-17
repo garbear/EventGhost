@@ -19,10 +19,6 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate: 2009-04-23 18:49:25 +0200 (Thu, 23 Apr 2009) $
-# $LastChangedRevision: 911 $
-# $LastChangedBy: Bitmonster $
 
 eg.RegisterPlugin(
     name = "Microsoft MCE Remote - Vista/Win7",

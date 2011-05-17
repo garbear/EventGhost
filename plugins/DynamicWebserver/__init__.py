@@ -17,10 +17,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate: 2008-10-04 17:50:01 +0200 (Sa, 04 Okt 2008) $
-# $LastChangedRevision: 503 $
-# $LastChangedBy: bitmonster $
+
 
 
 eg.RegisterPlugin(

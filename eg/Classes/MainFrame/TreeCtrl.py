@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -281,10 +278,10 @@ class TreeCtrl(wx.TreeCtrl):
         self.hwnd = self.GetHandle()
         normalfont = self.GetFont()
         italicfont = wx.Font(
-            normalfont.GetPointSize(), 
-            normalfont.GetFamily(), 
-            normalfont.GetStyle(), 
-            normalfont.GetWeight(), 
+            normalfont.GetPointSize(),
+            normalfont.GetFamily(),
+            normalfont.GetStyle(),
+            normalfont.GetWeight(),
             normalfont.GetUnderlined(),
             normalfont.GetFaceName(),
             normalfont.GetDefaultEncoding()
@@ -324,7 +321,7 @@ class TreeCtrl(wx.TreeCtrl):
             wx.CallAfter(eg.UndoHandler.Configure().Try, self.document)
         # if we don't call Skip(), a expandable item would not expand
         event.Skip()
-        
+
 
     @eg.AssertNotMainThread
     def SetData(self):

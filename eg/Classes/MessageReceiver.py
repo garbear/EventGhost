@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -99,16 +96,16 @@ class MessageReceiver(eg.ThreadWorker):
         self.wmUserHandlers[handler] = msg
         self.AddHandler(msg, handler)
         return msg
-        
-        
+
+
     def RemoveWmUserHandler(self, handler):
         msg = self.wmUserHandlers[handler]
         del self.wmUserHandlers[handler]
         self.freeWmUserMsgs.append(msg)
         self.RemoveHandler(msg, handler)
         return msg
-        
-    
+
+
     def MyWndProc(self, hwnd, mesg, wParam, lParam):
         if mesg == WM_SIZE:
             #print "MessageReceiver sized"

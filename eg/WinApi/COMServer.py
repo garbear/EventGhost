@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import os
@@ -29,8 +26,8 @@ import pythoncom
 
 class EventGhostCom:
     _public_methods_ = [
-        'TriggerEvent', 
-        'BringToFront', 
+        'TriggerEvent',
+        'BringToFront',
         'OpenFile',
         'InstallPlugin',
     ]
@@ -52,7 +49,7 @@ class EventGhostCom:
 
     def InstallPlugin(self, filePath):
         pass
-    
+
 
 # Patch win32com to use the gen_py directory in the programs
 # application data directory instead of its package directory.

@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 from sys import exc_info, _getframe
@@ -202,7 +199,7 @@ class ThreadWorker(object):
                     except:
                         action.PrintUnhandledException()
                     finally:
-                        # if the frame reference would not be removed, the 
+                        # if the frame reference would not be removed, the
                         # action would never be garbage collected.
                         action.callersFrame = None
             elif resultCode == WAIT_OBJECT_0+1:
@@ -286,7 +283,7 @@ class ThreadWorker(object):
 
     def Call(self, func, *args, **kwargs):
         """
-        Queue a function and its arguments for execution in the ThreadWorker 
+        Queue a function and its arguments for execution in the ThreadWorker
         thread. Doesn't wait for the completion of the function.
         """
         action = ThreadWorkerAction(partial(func, *args, **kwargs), True)
@@ -297,7 +294,7 @@ class ThreadWorker(object):
 
     def CallWait(self, func, timeout=10.0):
         """
-        Queue a function and its arguments for execution in the ThreadWorker 
+        Queue a function and its arguments for execution in the ThreadWorker
         thread. Waits for completion of the function and returns its result.
         """
         action = ThreadWorkerAction(func, False)

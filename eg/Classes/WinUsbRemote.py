@@ -27,12 +27,12 @@ PUBYTE = POINTER(c_ubyte)
 class WinUsbRemote(object):
     threadId = None
     dll = None
-    
+
     def __init__(
-        self, 
-        deviceInterfaceGuid, 
-        callback, 
-        dataSize=1, 
+        self,
+        deviceInterfaceGuid,
+        callback,
+        dataSize=1,
         suppressRepeat=False
     ):
         self.callback = callback
@@ -42,19 +42,19 @@ class WinUsbRemote(object):
         if self.dll is None:
             self.__class__.dll = WinDLL(
                 join(
-                    eg.MAIN_DIR, 
-                    "lib%d%d" % sys.version_info[:2], 
-                    "site-packages", 
+                    eg.MAIN_DIR,
+                    "lib%d%d" % sys.version_info[:2],
+                    "site-packages",
                     "WinUsbWrapper.dll"
                 )
             )
         self.Open()
-        
-    
+
+
     def IsOk(self):
         return bool(self.threadId)
-    
-    
+
+
     def Open(self):
         msgId = eg.messageReceiver.AddWmUserHandler(self.MsgHandler)
         self.threadId = self.dll.Start(
@@ -64,8 +64,8 @@ class WinUsbRemote(object):
             self.dataSize,
             int(self.suppressRepeat)
         )
-        
-    
+
+
     def Close(self):
         self.dll.End(self.threadId)
         self.threadId = None

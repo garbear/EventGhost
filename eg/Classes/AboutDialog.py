@@ -15,10 +15,7 @@
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 import wx
@@ -316,7 +313,7 @@ class SpecialThanksPanel(HtmlPanel):
             else:
                 for name, descr in persons:
                     write('<TR><TD ALIGN=RIGHT VALIGN=TOP WIDTH="50%"><B>')
-                    write(name)                     
+                    write(name)
                     write('</B></RIGHT></TD><TD WIDTH="50%"><I>')
                     write(descr)
                     write('</I></RIGHT></TD></TR>')

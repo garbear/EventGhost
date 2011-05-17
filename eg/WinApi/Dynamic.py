@@ -1474,3 +1474,4 @@ SW_SHOWNORMAL = 1 # Variable c_int '1'
 WaitForMultipleObjects = _kernel32.WaitForMultipleObjects
 WaitForMultipleObjects.restype = DWORD
 WaitForMultipleObjects.argtypes = [DWORD, POINTER(HANDLE), BOOL, DWORD]
+

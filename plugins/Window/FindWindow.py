@@ -199,7 +199,7 @@ class FindWindow(eg.ActionBase):
             cbIncludeInvisible.Enable(flag)
             if not flag:
                 stopMacroCtrl_1.SetValue(False)
-                stopMacroCtrl_2.SetValue(False)            
+                stopMacroCtrl_2.SetValue(False)
             stopMacroCtrl_1.Enable(flag)
             stopMacroCtrl_2.Enable(flag)
             waitCtrl.Enable(flag)

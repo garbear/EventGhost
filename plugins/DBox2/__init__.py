@@ -1,24 +1,21 @@
 # This file is part of EventGhost.
 # Copyright (C) 2005 Lars-Peter Voss <bitmonster@eventghost.org>
-# 
+#
 # EventGhost is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # EventGhost is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with EventGhost; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
-# $LastChangedDate$
-# $LastChangedRevision$
-# $LastChangedBy$
+
 
 import eg
 
@@ -54,35 +51,35 @@ eg.RegisterPlugin(
 ACTIONS = (
     ("Left", "Left", None, "KEY_LEFT"),
     ("Right", "Right", None, "KEY_RIGHT"),
-    ("Up", "Up", None, "KEY_UP"),             
+    ("Up", "Up", None, "KEY_UP"),
     ("Down", "Down", None, "KEY_DOWN"),
-    ("Ok", "Ok", None, "KEY_OK"),            
+    ("Ok", "Ok", None, "KEY_OK"),
     ("Mute", "Mute", None, "KEY_MUTE"),
-    ("Power", "Power", None, "KEY_POWER"),           
+    ("Power", "Power", None, "KEY_POWER"),
     ("Red", "Red", None, "KEY_RED"),
     ("Green", "Green", None, "KEY_GREEN"),
-    ("Yellow", "Yellow", None, "KEY_YELLOW"),         
-    ("Blue", "Blue", None, "KEY_BLUE"),           
+    ("Yellow", "Yellow", None, "KEY_YELLOW"),
+    ("Blue", "Blue", None, "KEY_BLUE"),
     ("VolumeUp", "Volume Up", None, "KEY_VOLUMEUP"),
-    ("VolumeDown", "Volume Down", None, "KEY_VOLUMEDOWN"),     
+    ("VolumeDown", "Volume Down", None, "KEY_VOLUMEDOWN"),
     ("Help", "Help", None, "KEY_HELP"),
-    ("Setup", "Setup", None, "KEY_SETUP"),           
+    ("Setup", "Setup", None, "KEY_SETUP"),
     ("TopLeft", "Top Left", None, "KEY_TOPLEFT"),
-    ("TopRight", "Top Right", None, "KEY_TOPRIGHT"),       
+    ("TopRight", "Top Right", None, "KEY_TOPRIGHT"),
     ("BottomLeft", "Bottom Left", None, "KEY_BOTTOMLEFT"),
-    ("BottomRight", "Bottom Right", None, "KEY_BOTTOMRIGHT"),     
+    ("BottomRight", "Bottom Right", None, "KEY_BOTTOMRIGHT"),
     ("Home", "Home", None, "KEY_HOME"),
-    ("PageDown", "Page Down", None, "KEY_PAGEDOWN"),       
+    ("PageDown", "Page Down", None, "KEY_PAGEDOWN"),
     ("PageUp", "Page Up", None, "KEY_PAGEUP"),
-    ("Num0", "Number 0", None, "KEY_0"),               
+    ("Num0", "Number 0", None, "KEY_0"),
     ("Num1", "Number 1", None, "KEY_1"),
-    ("Num2", "Number 2", None, "KEY_2"),               
+    ("Num2", "Number 2", None, "KEY_2"),
     ("Num3", "Number 3", None, "KEY_3"),
-    ("Num4", "Number 4", None, "KEY_4"),               
+    ("Num4", "Number 4", None, "KEY_4"),
     ("Num5", "Number 5", None, "KEY_5"),
-    ("Num6", "Number 6", None, "KEY_6"),               
+    ("Num6", "Number 6", None, "KEY_6"),
     ("Num7", "Number 7", None, "KEY_7"),
-    ("Num8", "Number 8", None, "KEY_8"),               
+    ("Num8", "Number 8", None, "KEY_8"),
     ("Num9", "Number 9", None, "KEY_9"),
 )
 
@@ -93,7 +90,7 @@ import socket
 from httplib import HTTPConnection
 
 class MyHTTPConnection(HTTPConnection):
-    
+
     def connect(self):
         """Connect to the host and port specified in __init__."""
         msg = "getaddrinfo returns an empty list"
@@ -120,7 +117,7 @@ class MyHTTPConnection(HTTPConnection):
 
 
 class ActionPrototype(eg.ActionBase):
-    
+
     def __call__(self):
         conn = MyHTTPConnection(self.plugin.host)
         try:
@@ -129,11 +126,11 @@ class ActionPrototype(eg.ActionBase):
             raise self.Exceptions.DeviceNotFound
         conn.getresponse()
         conn.close()
-        
-        
+
+
 
 class DBox2(eg.PluginBase):
-    
+
     def __init__(self):
         self.AddActionsFromList(ACTIONS, ActionPrototype)
 
@@ -144,15 +141,14 @@ class DBox2(eg.PluginBase):
             self.connectString = "/control/rcem?%s"
         else:
             self.connectString = "/control/exec?Y_Tools&rcsim&%s"
-            
-        
+
+
     def Configure(self, host="127.0.0.1", useRcem=True):
         panel = eg.ConfigPanel()
         hostCtrl = panel.TextCtrl(host)
         useRcemCtrl = panel.CheckBox(useRcem, 'Use "rcem" instead of "rcsim"')
         panel.AddLine("d-box2 Host:", hostCtrl)
-        panel.AddLine(useRcemCtrl)        
+        panel.AddLine(useRcemCtrl)
         while panel.Affirmed():
             panel.SetResult(hostCtrl.GetValue(), useRcemCtrl.GetValue())
-    
-        
+

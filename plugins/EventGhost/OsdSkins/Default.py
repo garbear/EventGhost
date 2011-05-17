@@ -8,3 +8,4 @@ Scale(8, 0, 1, 13, 8, 0, width - 15, 13) # top border
 Scale(8, 18, 1, 8, 8, height - 8, width - 15, 8) # bottom border
 Scale(9, 13, 7, 5, width - 7, 13, 7, height - 21) # right border
 Scale(8, 13, 1, 5, 8, 13, width - 14, height - 21) # the center area
+
