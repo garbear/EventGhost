@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-version="0.1.5"
+version="0.1.6"
 
 # plugins/SchedulGhost/__init__.py
 #
@@ -22,6 +22,11 @@ version="0.1.5"
 #
 # Revision history:
 # -----------------
+# 0.1.6 by Pako 2013-05-05 11:06 UTC+1
+#     - added ReloadXML action (rekall request)
+# 0.1.5 by Pako 2012-09-06 06:46 UTC+1
+#     - bugfix - malfunction, when the action "Disable schedule"
+#       is executed between the start and stop events
 # 0.1.5 by Pako 2012-08-16 19:09 UTC+1
 #     - added DataToXML action (EventGhost4ever request)
 # 0.1.4 by Pako 2011-08-24 09:15 UTC+1
@@ -953,7 +958,9 @@ class schedulerDialog(wx.Dialog):
                         int(data[2][:4])
                     )
                     dp.SetValue(wxDttm)
-            #elif type == 1 or type == 6: # daily/timer
+            elif type == 6: # timer
+                stEvLbl = None        
+            #elif type == 1: # daily
             #    pass
             if flag:
                 timeSizer = wx.GridBagSizer(0, 0)
@@ -1057,9 +1064,10 @@ class schedulerDialog(wx.Dialog):
             elif flag:
                 dynamicSizer.Layout()
             if type == 6:
-                stEvLbl.Show(False)
-                timeCtrl.Show(False)
-                spinBtn.Show(False)
+                if stEvLbl:
+                    stEvLbl.Show(False)
+                    timeCtrl.Show(False)
+                    spinBtn.Show(False)
             return dynamicSizer.GetMinSize()[0]
 
 
@@ -2242,8 +2250,9 @@ class SchedulGhost(eg.PluginBase):
         for sched in sched_list:
             if sched[1] == self.SchedulGhostScheduleRun:
                 if sched[2][0] in [item[1] for item in data]:
-                    tmpList.append(sched)
-                else:
+                    if not sched[2][1]: # ignore stop events
+                        tmpList.append(sched)
+                else: # delete schedule
                     self.updateLogFile(self.text.cancAndDel % sched[2][0])
                     eg.scheduler.CancelTask(sched) # schedule deleted !
         sched_list = tmpList
@@ -2269,15 +2278,15 @@ class SchedulGhost(eg.PluginBase):
                         startTicks
                     )
             elif schedule[0] and startMoment: # new schedule
-                    startTicks = mktime(strptime(startMoment, "%Y-%m-%d %H:%M:%S"))
-                    eg.scheduler.AddTaskAbsolute(
-                        startTicks,
-                        self.SchedulGhostScheduleRun,
-                        schedule[1],
-                        False,
-                        startTicks
-                    )
-                    self.updateLogFile(self.text.newSched % (schedule[1], startMoment))
+                startTicks = mktime(strptime(startMoment, "%Y-%m-%d %H:%M:%S"))
+                eg.scheduler.AddTaskAbsolute(
+                    startTicks,
+                    self.SchedulGhostScheduleRun,
+                    schedule[1],
+                    False,
+                    startTicks
+                )
+                self.updateLogFile(self.text.newSched % (schedule[1], startMoment))
 
 
     def dataToXml(self):
@@ -3392,6 +3401,21 @@ class DataToXML(eg.ActionBase):
         self.plugin.dataToXml()
 #===============================================================================
 
+class ReloadXML(eg.ActionBase):
+
+    def __call__(self):
+        self.plugin.data = self.plugin.xmlToData()
+        self.plugin.tmpData = cpy(self.plugin.data)
+        self.plugin.UpdateEGscheduler()
+        if self.plugin.dialog:
+            self.plugin.dialog.onClose(wx.CommandEvent())
+            wx.CallAfter(
+                schedulerDialog,
+                self.plugin.text.ShowSchedulGhost,
+                self.plugin
+            )            
+#===============================================================================
+
 Actions = (
     (SetEggTimer, "SetEggTimer", "Adjust and start egg timer", "Adjust and start egg timer.", 0),
     (SetEggTimer, "StartEggTimer", "Start egg timer", "Start egg timer immediately (without the possibility to adjust the time to elapse).", 1),
@@ -3408,4 +3432,5 @@ Actions = (
     (DeleteSchedule, "DeleteSchedule", "Delete schedule", "Delete schedule.", None),
     (RunScheduleImmediately, "RunScheduleImmediately", "Run schedule immediately", "Runs schedule immediately.", None),
     (DataToXML, "DataToXML", "Save data to xml", "Saves data to xml.", None),
+    (ReloadXML, "ReloadXML", "Reload data from xml", "Reloads data from xml.", None),
 )
